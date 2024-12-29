@@ -1,0 +1,17 @@
+{
+  "name": "luoguPaintboard",
+  "version": "1.0.0",
+  "description": "Luogu paintboard",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "run": "node index.js"
+  },
+  "author": "langningchen",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "canvas": "^3.0.0",
+    "sharp": "^0.33.5",
+    "ws": "^8.18.0"
+  }
+}
