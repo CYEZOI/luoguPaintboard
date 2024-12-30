@@ -7,16 +7,14 @@ import { paintStatus, tokenToUint8Array, uintToUint8Array } from './utils.js';
 import { paintboardSocket } from './socket.js';
 import { WebSocket } from 'ws';
 
-export const boardData = new Array(config.width).fill(
-    new Array(config.height).fill({ r: 0, g: 0, b: 0 })
-);
+export const boardData = new Array(config.width * config.height).fill({ r: 0, g: 0, b: 0 });
 
 const saveToImage = async () => {
     const canvas = createCanvas(config.width, config.height);
     const ctx = canvas.getContext('2d');
     for (let x = 0; x < config.width; x++) {
         for (let y = 0; y < config.height; y++) {
-            const { r, g, b } = boardData[x][y];
+            const { r, g, b } = boardData[x * config.width + y];
             ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
             ctx.fillRect(x, y, 1, 1);
         }
@@ -35,7 +33,7 @@ export const refreshBoard = async () => {
         const byteArray = new Uint8Array(await res.arrayBuffer());
         for (let y = 0; y < config.height; y++) {
             for (let x = 0; x < config.width; x++) {
-                boardData[x][y] = {
+                boardData[x * config.width + y] = {
                     r: byteArray[y * config.width * 3 + x * 3],
                     g: byteArray[y * config.width * 3 + x * 3 + 1],
                     b: byteArray[y * config.width * 3 + x * 3 + 2],
@@ -73,7 +71,7 @@ setTimeout(async () => {
         const [uid, token] = await getAvailableToken();
         const paintEvent = paintEvents.pending.shift();
         const { r, g, b, x, y } = paintEvent;
-        const currentData = boardData[x][y];
+        const currentData = boardData[x * config.width + y];
         if (currentData.r === r && currentData.g === g && currentData.b === b) {
             paintEvents.status = paintStatus.ALREADY_PAINTED;
             paintEvents.done.push(paintEvent);
