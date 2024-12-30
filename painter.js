@@ -60,14 +60,16 @@ export const paint = (r, g, b, x, y) => {
 
 setTimeout(async () => {
     while (true) {
-        await new Promise((resolve) => {
-            const painterInterval = setInterval(() => {
-                if (paintboardSocket.readyState === WebSocket.OPEN && paintEvents.pending.length > 0) {
-                    clearInterval(painterInterval);
-                    resolve();
-                }
-            }, config.cd / tokenStatus.availableCount);
-        });
+        if (paintboardSocket.readyState !== WebSocket.OPEN || paintEvents.pending.length <= 0) {
+            await new Promise((resolve) => {
+                const painterInterval = setInterval(() => {
+                    if (paintboardSocket.readyState === WebSocket.OPEN && paintEvents.pending.length > 0) {
+                        clearInterval(painterInterval);
+                        resolve();
+                    }
+                }, 100);
+            });
+        }
         const [uid, token] = await getAvailableToken();
         const paintEvent = paintEvents.pending.shift();
         const { r, g, b, x, y } = paintEvent;

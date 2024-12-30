@@ -46,7 +46,6 @@ paintboardSocket.onmessage = async (event) => {
                 switch (code) {
                     case 0xef: // 成功
                         paintEvent.status = paintStatus.SUCCESS;
-                        // 将 
                         break;
                     case 0xee: // 正在冷却
                         paintEvent.status = paintStatus.COOLING;

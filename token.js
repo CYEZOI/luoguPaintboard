@@ -58,6 +58,12 @@ for (const uid in tokenStatus.tokens) {
 
 export const getAvailableToken = async () => {
     return new Promise((resolve) => {
+        for (const uid in tokenStatus.tokens) {
+            if (isCooledDown(uid) && tokenStatus.tokens[uid].token) {
+                resolve([parseInt(uid), tokenStatus.tokens[uid].token]);
+                break;
+            }
+        }
         const interval = setInterval(() => {
             for (const uid in tokenStatus.tokens) {
                 if (isCooledDown(uid) && tokenStatus.tokens[uid].token) {
