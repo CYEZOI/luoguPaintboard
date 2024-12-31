@@ -1,3 +1,5 @@
+import { config } from './config';
+
 export const uintToUint8Array = (uint: number, bytes: number) => {
     const array = new Uint8Array(bytes);
     for (let i = 0; i < bytes; i++) {
@@ -51,5 +53,9 @@ export class POS {
             ...uintToUint8Array(this.x, 2),
             ...uintToUint8Array(this.y, 2),
         ]);
+    }
+
+    toNumber = (): number => {
+        return this.x * config.width + this.y;
     }
 }

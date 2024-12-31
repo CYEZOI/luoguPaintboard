@@ -1,5 +1,5 @@
-import config from './config';
-import { painter, PaintEvent, PaintStatus } from './painter';
+import { config } from './config';
+import { painter } from './painter';
 import { socket } from './socket';
 import { tokens } from './token';
 
@@ -33,45 +33,31 @@ const colors = {
     BgGray: '\x1b[100m',
 };
 
+const color = (color: string, message?: string): string => {
+    return color + message + colors.Reset;
+};
+
 export class Report {
-    private logs: string[] = [];
+    private readonly logs: string[] = [];
+    private lastHeartbeat: Date | null = null;
+    private lastPaintboardRefresh: Date | null = null;
+    private lastPaintboardRefreshMessage: string = '';
 
     log(msg: string): void {
         this.logs.push(msg);
-    }
-
-    private outputPaintEvent(eventData: PaintEvent): string {
-        var message = '';
-        message += eventData.toOutputString(true) + ' ';
-        switch (eventData.status) {
-            case PaintStatus.PENDING: message += colors.FgCyan + 'Pending'; break;
-            case PaintStatus.PAINTING: message += colors.FgBlue + 'Painting'; break;
-            case PaintStatus.SUCCESS: message += colors.FgGreen + 'Success'; break;
-            case PaintStatus.ALREADY_PAINTED: message += colors.FgGray + 'Already painted'; break;
-            case PaintStatus.COOLING: message += colors.FgYellow + 'Cooling'; break;
-            case PaintStatus.TOKEN_INVALID: message += colors.FgRed + 'Token invalid'; break;
-            case PaintStatus.REQUEST_FAILED: message += colors.FgRed + 'Request failed'; break;
-            case PaintStatus.NO_PERMISSION: message += colors.FgRed + 'No permission'; break;
-            case PaintStatus.SERVER_ERROR: message += colors.FgMagenta + 'Server error'; break;
-            case PaintStatus.UNKNOWN_ERROR: message += colors.FgMagenta + 'Unknown error'; break;
-        }
-        message += colors.Reset + '\n';
-        return message;
     }
 
     startReport() {
         setInterval(() => {
             var message = '';
             for (const [uid, { token, info, error, lastUsed }] of tokens.tokens) {
-                message += uid.toString().padEnd(7) + ' ' + colors.Underscore;
-                if (token) { message += colors.FgGreen + token; }
-                else { message += colors.FgRed + 'No token'.padEnd(36); }
-                message += colors.Reset + ' ';
-                if (tokens.isCooledDown(uid)) { message += colors.FgGreen + 'COOLED'; }
-                else { message += colors.FgRed + ((config.cd * 1000 - (new Date().getTime() - lastUsed!.getTime())) / 1000).toFixed(1).padStart(5) + 's'; }
-                message += colors.Reset + ' ';
-                if (error) { message += colors.BgRed + error + colors.Reset + ' '; }
-                if (info) { message += info + ' '; }
+                message += uid.toString().padEnd(7) + ' ';
+                if (!token) { message += color(colors.FgRed, 'ERR '); }
+                else if (tokens.isCooledDown(uid)) { message += color(colors.FgGreen, 'OK  '); }
+                else { message += color(colors.FgRed, ((config.cd * 1000 - (new Date().getTime() - lastUsed!.getTime())) / 1000).toFixed(1).padStart(4)); }
+                message += ' ';
+                if (error) { message += color(colors.BgRed, error) + ' '; }
+                if (info) { message += color(colors.FgCyan, info) + ' '; }
                 message += `\n`;
             }
             message += `\n`;
@@ -79,25 +65,21 @@ export class Report {
             message += `WebSocket: `;
             switch (socket.paintboardSocket.readyState) {
                 case WebSocket.CONNECTING:
-                    message += colors.FgYellow + 'CONNECTING';
+                    message += color(colors.FgYellow, 'CONNECTING');
                     break;
                 case WebSocket.OPEN:
-                    message += colors.FgGreen + 'OPEN';
+                    message += color(colors.FgGreen, 'OPEN');
                     break;
                 case WebSocket.CLOSING:
-                    message += colors.FgYellow + 'CLOSING';
+                    message += color(colors.FgYellow, 'CLOSING');
                     break;
                 case WebSocket.CLOSED:
-                    message += colors.FgRed + 'CLOSED';
+                    message += color(colors.FgRed, 'CLOSED');
             }
             message += colors.Reset + '\n';
-            message += `Last heartbeat time: ${socket.lastHeartbeatTime}\n`;
+            message += `Last heartbeat time: ` + color(colors.FgBlue, this.lastHeartbeat?.toLocaleString()) + `\n`;
+            message += `Last paintboard refresh: ` + color(colors.FgBlue, this.lastPaintboardRefresh?.toLocaleString()) + ` ` + color(colors.FgRed, this.lastPaintboardRefreshMessage) + `\n`;
             message += `Painted: ${painter.paintEvents.done.length}  Painting: ${painter.paintEvents.painting.size}  Pending: ${painter.paintEvents.pending.length}\n\n`;
-
-            for (let i = Math.min(config.paintOldLogSize, painter.paintEvents.done.length) - 1; i >= 0; i--) { message += this.outputPaintEvent(painter.paintEvents.done[painter.paintEvents.done.length - 1 - i]!); }
-            for (const paintEvent of painter.paintEvents.painting.values()) { message += this.outputPaintEvent(paintEvent); }
-            for (let i = 0; i < Math.min(config.paintLogSize, painter.paintEvents.pending.length); i++) { message += this.outputPaintEvent(painter.paintEvents.pending[i]!); }
-            message += `\n`;
 
             for (let i = 0; i < Math.min(config.logSize, this.logs.length); i++) {
                 message += this.logs[this.logs.length - 1 - i] + '\n';
@@ -106,6 +88,12 @@ export class Report {
             console.clear();
             console.log(message);
         }, 100);
+    }
+
+    heatBeat() { this.lastHeartbeat = new Date(); }
+    paintboardRefresh(message?: string) {
+        this.lastPaintboardRefresh = new Date();
+        this.lastPaintboardRefreshMessage = message ?? '';
     }
 }
 

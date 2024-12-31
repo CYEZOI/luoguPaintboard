@@ -1,4 +1,4 @@
-export default {
+export const config = {
     pasteIds: new Map([
         [246316, 'xteor6v6'],
         [280823, '1ze6326t'],
@@ -21,8 +21,6 @@ export default {
     ]),
     cd: 30, // 每个点绘图的冷却时间
     cdRetry: 1, // 如果已经到时间但是服务器返回正在冷却，那么再等待多久
-    paintOldLogSize: 20,
-    paintLogSize: 5, // 显示的绘图日志数量
     logSize: 5, // 显示的日志数量
     width: 1000, // 画板宽度
     height: 600, // 画板高度

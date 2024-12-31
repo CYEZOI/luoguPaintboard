@@ -1,4 +1,4 @@
-import config from './config';
+import { config } from './config';
 
 export type Token = {
     lastUsed: Date | null;
@@ -10,7 +10,6 @@ export type Token = {
 
 export class Tokens {
     public readonly tokens: Map<number, Token> = new Map();
-    private availableCount: number = 0;
 
     constructor() {
         config.pasteIds.forEach((paste, uid) => {
@@ -36,7 +35,6 @@ export class Tokens {
         const token = this.tokens.get(uid)!;
         if (token.token) {
             token.token = null;
-            this.availableCount--;
         }
         try {
             const res = await fetch(`${config.httpsUrl}/api/auth/gettoken`, {
@@ -56,7 +54,6 @@ export class Tokens {
             else {
                 token.token = data.data.token;
                 token.info = `Got token`;
-                this.availableCount++;
             }
         } catch (err) {
             token.error = `Request token failed: ${err}`;

@@ -1,5 +1,5 @@
 import { report } from './report';
-import config from './config';
+import { config } from './config';
 import { tokens } from './token';
 import { createWriteStream } from 'fs';
 import { createCanvas } from 'canvas';
@@ -52,7 +52,7 @@ const saveToImage = async () => {
     const ctx = canvas.getContext('2d');
     for (let x = 0; x < config.width; x++) {
         for (let y = 0; y < config.height; y++) {
-            ctx.fillStyle = painter.boardData.get(new POS(x, y))!.toOutputString();
+            ctx.fillStyle = painter.boardData.get(new POS(x, y).toNumber())!.toOutputString();
             ctx.fillRect(x, y, 1, 1);
         }
     }
@@ -65,8 +65,8 @@ const saveToImage = async () => {
 }
 
 export class Painter {
-    boardData: Map<POS, RGB> = new Map();
-    paintEvents: PaintEvents = {
+    public readonly boardData: Map<number, RGB> = new Map();
+    public readonly paintEvents: PaintEvents = {
         pending: [],
         painting: new Map(),
         done: [],
@@ -78,7 +78,7 @@ export class Painter {
 
     startPainting = async (): Promise<void> => {
         await socket.socketOpen;
-        await this.refreshBoard();
+        await this.refreshPaintboard();
         const ID_MAX = Math.pow(2, 32);
         while (true) {
             await new Promise<void>((resolve) => {
@@ -96,7 +96,7 @@ export class Painter {
             const [uid, token] = await tokens.getAvailableToken();
             const paintEvent: PaintEvent = this.paintEvents.pending.shift()!;
             const { color, pos } = paintEvent;
-            const currentData = this.boardData.get(pos);
+            const currentData = this.boardData.get(pos.toNumber());
             if (currentData && currentData.toOutputString() == color.toOutputString()) {
                 paintEvent.status = PaintStatus.ALREADY_PAINTED;
                 this.paintEvents.done.push(paintEvent);
@@ -118,30 +118,30 @@ export class Painter {
                 ...uintToUint8Array(id, 4),
             ]);
             tokens.useToken(uid);
-            socket.paintboardSocket.send(paintData);
+            socket.send(paintData);
         }
     }
 
-    refreshBoard = async () => {
+    refreshPaintboard = async () => {
         try {
             const res = await fetch(`${config.httpsUrl}/api/paintboard/getboard`);
             const byteArray = new Uint8Array(await res.arrayBuffer());
             if (byteArray.length !== config.width * config.height * 3) {
-                throw new Error('获取画板数据失败。');
+                report.paintboardRefresh('Paintboard data length mismatch.');
             }
             for (let y = 0; y < config.height; y++) {
                 for (let x = 0; x < config.width; x++) {
-                    this.boardData.set(new POS(x, y), new RGB(
+                    this.boardData.set(new POS(x, y).toNumber(), new RGB(
                         byteArray[y * config.width * 3 + x * 3]!,
                         byteArray[y * config.width * 3 + x * 3 + 1]!,
                         byteArray[y * config.width * 3 + x * 3 + 2]!
                     ));
                 }
             }
-            report.log('画板已刷新。');
+            report.paintboardRefresh();
             await saveToImage();
         } catch (err) {
-            report.log(`刷新画板失败：${(err as Error).message}。`);
+            report.log((err as Error).message);
         }
     };
 }

@@ -9,7 +9,7 @@ type ImageData = {
 }
 
 export class Image {
-    private image: sharp.Sharp;
+    private readonly image: sharp.Sharp;
     private imageData: ImageData | null = null;
 
     constructor(imagePath: string) {

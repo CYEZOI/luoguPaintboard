@@ -1,7 +1,7 @@
-import WebSocket, { CloseEvent, ErrorEvent, MessageEvent } from 'ws';
-import config from './config';
+import WebSocket from 'ws';
+import { config } from './config';
 import { tokens } from './token';
-import { painter, PaintStatus } from './painter';
+import { painter, PaintEvent, PaintStatus } from './painter';
 import { report } from './report';
 import { POS, RGB } from './utils';
 
@@ -21,12 +21,11 @@ const WebSocketMessageCodes = {
 };
 
 export class Socket {
-    lastHeartbeatTime: Date | null;
-    paintboardSocket: WebSocket;
-    socketOpen: Promise<void>;
+    public readonly paintboardSocket: WebSocket;
+    public readonly socketOpen: Promise<void>;
+    private readonly sendQueue: ArrayBuffer[] = [];
 
     constructor() {
-        this.lastHeartbeatTime = null;
         this.paintboardSocket = new WebSocket(config.wsUrl);
         this.setupSocket();
         this.socketOpen = new Promise((resolve) => {
@@ -39,12 +38,14 @@ export class Socket {
     setupSocket() {
         this.paintboardSocket.binaryType = 'arraybuffer';
 
-        this.paintboardSocket.addEventListener('message', (event: MessageEvent) => this.handleMessage(event));
-        this.paintboardSocket.addEventListener('error', (err: ErrorEvent) => { console.error(`WebSocket 出错：${err.message}。`); });
-        this.paintboardSocket.addEventListener('close', (reason: CloseEvent) => { console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`); });
+        this.paintboardSocket.addEventListener('message', (event: WebSocket.MessageEvent) => (async () => {
+            await this.handleMessage(event);
+        })());
+        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { console.error(`WebSocket 出错：${err.message}。`); });
+        this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => { console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`); });
     }
 
-    async handleMessage(event: MessageEvent) {
+    async handleMessage(event: WebSocket.MessageEvent) {
         const buffer = event.data as ArrayBuffer;
         const dataView = new DataView(buffer);
 
@@ -62,13 +63,12 @@ export class Socket {
                     const colorB = dataView.getUint8(offset + 6);
                     const color = new RGB(colorR, colorG, colorB);
                     offset += 7;
-                    report.log(`收到像素点 ${pos.toOutputString()} 的颜色： ${color.toOutputString()}。`);
-                    painter.boardData.set(pos, color);
+                    painter.boardData.set(pos.toNumber(), color);
                     break;
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
                     this.paintboardSocket.send(new Uint8Array([0xfb]));
-                    this.lastHeartbeatTime = new Date();
+                    report.heatBeat();
                     break;
                 }
                 case WebSocketMessageTypes.PAINT_RESULT: {
@@ -104,12 +104,29 @@ export class Socket {
                             report.log(`未知的返回码：${code}`);
                     }
                     painter.paintEvents.done.push(paintEvent);
+                    if (paintEvent.status !== PaintStatus.SUCCESS) {
+                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.color, paintEvent.pos, PaintStatus.PENDING));
+                    }
                     break;
                 }
                 default:
                     report.log(`未知的消息类型：${type}`);
             }
         }
+    }
+
+    send(buffer: ArrayBuffer) {
+        this.sendQueue.push(buffer);
+    }
+
+    startSending() {
+        setInterval(() => {
+            if (this.paintboardSocket.readyState === WebSocket.OPEN) {
+                while (this.sendQueue.length > 0) {
+                    this.paintboardSocket.send(this.sendQueue.shift()!);
+                }
+            }
+        }, 100);
     }
 }
 
