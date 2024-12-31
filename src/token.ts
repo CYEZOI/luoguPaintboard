@@ -1,20 +1,26 @@
 import config from './config';
 
-export class Token {
+export type Token = {
     lastUsed: Date | null;
     token: string | null;
-    info: string = 'Uninitialized';
-    error: string = '';
+    info: string;
+    error: string;
     paste: string;
 }
 
-export class TokenManager {
-    public readonly tokens: Map<number, Token>;
-    private availableCount: number;
+export class Tokens {
+    public readonly tokens: Map<number, Token> = new Map();
+    private availableCount: number = 0;
 
     constructor() {
         config.pasteIds.forEach((paste, uid) => {
-            this.tokens[uid] = { paste, };
+            this.tokens.set(uid, {
+                lastUsed: null,
+                token: null,
+                info: '',
+                error: '',
+                paste,
+            });
         });
     }
 
@@ -60,7 +66,7 @@ export class TokenManager {
 
     async getAvailableToken() {
         return new Promise<[number, string]>((resolve) => {
-            var intervalId: number | null = null;
+            var intervalId: NodeJS.Timeout | null = null;
             const check = () => {
                 for (const [uid, token] of this.tokens) {
                     if (this.isCooledDown(uid) && token.token) {
@@ -88,8 +94,8 @@ export class TokenManager {
     }
 }
 
-export const tokenManager = new TokenManager();
+export const tokens = new Tokens();
 
 for (const [uid, _] of config.pasteIds) {
-    tokenManager.fetchToken(uid);
+    tokens.fetchToken(uid);
 }

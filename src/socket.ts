@@ -1,8 +1,9 @@
-import WebSocket from 'ws';
-import { boardData, PaintEvents, PaintStatus, refreshBoard } from './painter';
+import WebSocket, { CloseEvent, ErrorEvent, MessageEvent } from 'ws';
 import config from './config';
-import { log } from './report';
-import { tokenManager } from './token';
+import { tokens } from './token';
+import { painter, PaintStatus } from './painter';
+import { report } from './report';
+import { POS, RGB } from './utils';
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -19,35 +20,32 @@ const WebSocketMessageCodes = {
     SERVER_ERROR: 0xea,
 };
 
-export class SocketManager {
+export class Socket {
     lastHeartbeatTime: Date | null;
     paintboardSocket: WebSocket;
-    paintEvents: PaintEvents;
+    socketOpen: Promise<void>;
 
     constructor() {
         this.lastHeartbeatTime = null;
         this.paintboardSocket = new WebSocket(config.wsUrl);
         this.setupSocket();
+        this.socketOpen = new Promise((resolve) => {
+            this.paintboardSocket.onopen = () => {
+                resolve();
+            };
+        });
     }
 
     setupSocket() {
-        this.paintboardSocket.binaryType = "arraybuffer";
-        this.paintboardSocket.onopen = () => {
-            refreshBoard();
-        };
+        this.paintboardSocket.binaryType = 'arraybuffer';
 
-        this.paintboardSocket.onmessage = (event: MessageEvent) => this.handleMessage(event);
-
-        this.paintboardSocket.onerror = (err: Error) => {
-            console.error(`WebSocket 出错：${err.message}。`);
-        };
-        this.paintboardSocket.onclose = (reason: CloseEvent) => {
-            console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`);
-        };
+        this.paintboardSocket.addEventListener('message', (event: MessageEvent) => this.handleMessage(event));
+        this.paintboardSocket.addEventListener('error', (err: ErrorEvent) => { console.error(`WebSocket 出错：${err.message}。`); });
+        this.paintboardSocket.addEventListener('close', (reason: CloseEvent) => { console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`); });
     }
 
-    async handleMessage(event: MessageEvent<ArrayBuffer>) {
-        const buffer = event.data;
+    async handleMessage(event: MessageEvent) {
+        const buffer = event.data as ArrayBuffer;
         const dataView = new DataView(buffer);
 
         let offset = 0;
@@ -58,12 +56,14 @@ export class SocketManager {
                 case WebSocketMessageTypes.PIXEL: {
                     const x = dataView.getUint16(offset, true);
                     const y = dataView.getUint16(offset + 2, true);
+                    const pos = new POS(x, y);
                     const colorR = dataView.getUint8(offset + 4);
                     const colorG = dataView.getUint8(offset + 5);
                     const colorB = dataView.getUint8(offset + 6);
+                    const color = new RGB(colorR, colorG, colorB);
                     offset += 7;
-                    log(`收到像素点 (${x}, ${y}) 的颜色：rgb(${colorR}, ${colorG}, ${colorB})。`);
-                    boardData[x * config.width + y] = { r: colorR, g: colorG, b: colorB };
+                    report.log(`收到像素点 ${pos.toOutputString()} 的颜色： ${color.toOutputString()}。`);
+                    painter.boardData.set(pos, color);
                     break;
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
@@ -75,20 +75,20 @@ export class SocketManager {
                     const id = dataView.getUint32(offset, true);
                     const code = dataView.getUint8(offset + 4);
                     offset += 5;
-                    const paintEvent = this.paintEvents.painting[id];
-                    this.paintEvents.painting[id] = undefined;
+                    const paintEvent = painter.paintEvents.painting.get(id)!;
+                    painter.paintEvents.painting.delete(id);
                     switch (code) {
                         case WebSocketMessageCodes.SUCCESS:
                             paintEvent.status = PaintStatus.SUCCESS;
                             break;
                         case WebSocketMessageCodes.COOLING:
                             paintEvent.status = PaintStatus.COOLING;
-                            tokenManager.updateUseTime(paintEvent.uid, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
                             break;
                         case WebSocketMessageCodes.TOKEN_INVALID:
                             paintEvent.status = PaintStatus.TOKEN_INVALID;
-                            await tokenManager.fetchToken(paintEvent.uid);
-                            tokenManager.updateUseTime(paintEvent.uid, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
+                            await tokens.fetchToken(paintEvent.uid!);
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
                             break;
                         case WebSocketMessageCodes.REQUEST_FAILED:
                             paintEvent.status = PaintStatus.REQUEST_FAILED;
@@ -101,16 +101,16 @@ export class SocketManager {
                             break;
                         default:
                             paintEvent.status = PaintStatus.UNKNOWN_ERROR;
-                            log(`未知的返回码：${code}`);
+                            report.log(`未知的返回码：${code}`);
                     }
-                    this.paintEvents.done.push(paintEvent);
+                    painter.paintEvents.done.push(paintEvent);
                     break;
                 }
                 default:
-                    log(`未知的消息类型：${type}`);
+                    report.log(`未知的消息类型：${type}`);
             }
         }
     }
 }
 
-export const socketManager = new SocketManager();
+export const socket = new Socket();

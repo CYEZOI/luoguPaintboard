@@ -3,15 +3,22 @@
   "version": "1.0.0",
   "description": "Luogu paintboard",
   "type": "module",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "run": "node index.js"
+    "compile": "tsc && node ./script/addJsExt.cjs",
+    "start": "npm run compile && node ./dist/index.js"
   },
   "author": "langningchen",
   "license": "GPL-3.0-or-later",
   "dependencies": {
     "canvas": "^3.0.0",
+    "esbuild": "^0.24.2",
     "sharp": "^0.33.5",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13",
+    "glob": "^11.0.0",
+    "typescript": "^5.7.2"
   }
 }
