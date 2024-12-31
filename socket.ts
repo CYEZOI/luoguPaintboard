@@ -1,10 +1,29 @@
 import WebSocket from 'ws';
-import { painter } from './painter.js';
-import config from './config.js';
-import { paintStatus } from './utils.js';
-import { log } from './report.js';
+import { boardData, PaintEvents, PaintStatus, refreshBoard } from './painter';
+import config from './config';
+import { log } from './report';
+import { tokenManager } from './token';
+
+const WebSocketMessageTypes = {
+    PIXEL: 0xfa,
+    HEARTBEAT: 0xfc,
+    PAINT_RESULT: 0xff,
+};
+
+const WebSocketMessageCodes = {
+    SUCCESS: 0xef,
+    COOLING: 0xee,
+    TOKEN_INVALID: 0xed,
+    REQUEST_FAILED: 0xec,
+    NO_PERMISSION: 0xeb,
+    SERVER_ERROR: 0xea,
+};
 
 export class SocketManager {
+    lastHeartbeatTime: Date | null;
+    paintboardSocket: WebSocket;
+    paintEvents: PaintEvents;
+
     constructor() {
         this.lastHeartbeatTime = null;
         this.paintboardSocket = new WebSocket(config.wsUrl);
@@ -17,18 +36,17 @@ export class SocketManager {
             refreshBoard();
         };
 
-        this.paintboardSocket.onmessage = (event) => this.handleMessage(event);
+        this.paintboardSocket.onmessage = (event: MessageEvent) => this.handleMessage(event);
 
-        this.paintboardSocket.onerror = (err) => {
+        this.paintboardSocket.onerror = (err: Error) => {
             console.error(`WebSocket 出错：${err.message}。`);
         };
-        this.paintboardSocket.onclose = (err) => {
-            const reason = err.reason ? err.reason : "Unknown";
-            log(`WebSocket 已经关闭 (${err.code}: ${reason})。`);
+        this.paintboardSocket.onclose = (reason: CloseEvent) => {
+            console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`);
         };
     }
 
-    async handleMessage(event) {
+    async handleMessage(event: MessageEvent<ArrayBuffer>) {
         const buffer = event.data;
         const dataView = new DataView(buffer);
 
@@ -37,7 +55,7 @@ export class SocketManager {
             const type = dataView.getUint8(offset);
             offset += 1;
             switch (type) {
-                case 0xfa: {
+                case WebSocketMessageTypes.PIXEL: {
                     const x = dataView.getUint16(offset, true);
                     const y = dataView.getUint16(offset + 2, true);
                     const colorR = dataView.getUint8(offset + 4);
@@ -45,44 +63,44 @@ export class SocketManager {
                     const colorB = dataView.getUint8(offset + 6);
                     offset += 7;
                     log(`收到像素点 (${x}, ${y}) 的颜色：rgb(${colorR}, ${colorG}, ${colorB})。`);
-                    boardData[x][y] = { r: colorR, g: colorG, b: colorB };
+                    boardData[x * config.width + y] = { r: colorR, g: colorG, b: colorB };
                     break;
                 }
-                case 0xfc: {
+                case WebSocketMessageTypes.HEARTBEAT: {
                     this.paintboardSocket.send(new Uint8Array([0xfb]));
                     this.lastHeartbeatTime = new Date();
                     break;
                 }
-                case 0xff: {
+                case WebSocketMessageTypes.PAINT_RESULT: {
                     const id = dataView.getUint32(offset, true);
                     const code = dataView.getUint8(offset + 4);
                     offset += 5;
                     const paintEvent = this.paintEvents.painting[id];
                     this.paintEvents.painting[id] = undefined;
                     switch (code) {
-                        case 0xef: // 成功
-                            paintEvent.status = paintStatus.SUCCESS;
+                        case WebSocketMessageCodes.SUCCESS:
+                            paintEvent.status = PaintStatus.SUCCESS;
                             break;
-                        case 0xee: // 正在冷却
-                            paintEvent.status = paintStatus.COOLING;
-                            this.tokenManager.tokens[paintEvent.uid].lastUsed = new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry));
+                        case WebSocketMessageCodes.COOLING:
+                            paintEvent.status = PaintStatus.COOLING;
+                            tokenManager.updateUseTime(paintEvent.uid, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
                             break;
-                        case 0xed: // Token 无效
-                            paintEvent.status = paintStatus.TOKEN_INVALID;
-                            await this.tokenManager(paintEvent.uid);
-                            this.tokenManager.tokens[paintEvent.uid].lastUsed = new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry));
+                        case WebSocketMessageCodes.TOKEN_INVALID:
+                            paintEvent.status = PaintStatus.TOKEN_INVALID;
+                            await tokenManager.fetchToken(paintEvent.uid);
+                            tokenManager.updateUseTime(paintEvent.uid, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
                             break;
-                        case 0xec: // 请求格式错误
-                            paintEvent.status = paintStatus.REQUEST_FAILED;
+                        case WebSocketMessageCodes.REQUEST_FAILED:
+                            paintEvent.status = PaintStatus.REQUEST_FAILED;
                             break;
-                        case 0xeb: // 无权限
-                            paintEvent.status = paintStatus.NO_PERMISSION;
+                        case WebSocketMessageCodes.NO_PERMISSION:
+                            paintEvent.status = PaintStatus.NO_PERMISSION;
                             break;
-                        case 0xea: // 服务器错误
-                            paintEvent.status = paintStatus.SERVER_ERROR;
+                        case WebSocketMessageCodes.SERVER_ERROR:
+                            paintEvent.status = PaintStatus.SERVER_ERROR;
                             break;
                         default:
-                            paintEvent.status = paintStatus.UNKNOWN_ERROR;
+                            paintEvent.status = PaintStatus.UNKNOWN_ERROR;
                             log(`未知的返回码：${code}`);
                     }
                     this.paintEvents.done.push(paintEvent);

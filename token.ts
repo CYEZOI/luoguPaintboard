@@ -9,8 +9,9 @@ export class Token {
 }
 
 export class TokenManager {
-    private tokens: Map<number, Token>;
+    public readonly tokens: Map<number, Token>;
     private availableCount: number;
+
     constructor() {
         config.pasteIds.forEach((paste, uid) => {
             this.tokens[uid] = { paste, };
@@ -58,8 +59,8 @@ export class TokenManager {
     }
 
     async getAvailableToken() {
-        return new Promise((resolve) => {
-            var intervalId: NodeJS.Timeout | null = null;
+        return new Promise<[number, string]>((resolve) => {
+            var intervalId: number | null = null;
             const check = () => {
                 for (const [uid, token] of this.tokens) {
                     if (this.isCooledDown(uid) && token.token) {
@@ -76,6 +77,14 @@ export class TokenManager {
 
     useToken(uid: number) {
         return this.tokens.get(uid)!.lastUsed = new Date();
+    }
+
+    updateUseTime(uid: number, time: Date) {
+        this.tokens.get(uid)!.lastUsed = time;
+    }
+
+    setInfo(uid: number, info: string) {
+        this.tokens.get(uid)!.info = info;
     }
 }
 

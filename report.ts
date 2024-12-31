@@ -1,15 +1,15 @@
 import { WebSocket } from 'ws';
 import config from './config.js';
-import { paintEvents } from './painter.js';
-import { lastHeartbeatTime, paintboardSocket } from './socket.js';
-import { isCooledDown, tokenManager, tokenStatus } from './token.js';
-import { paintStatus } from './utils.js';
 
-const logs = [];
-
-export const log = (msg) => {
-    logs.push(msg);
-};
+export interface PaintEventData {
+    uid?: number | string;
+    x: number;
+    y: number;
+    r: number;
+    g: number;
+    b: number;
+    status: PaintStatus;
+}
 
 const colors = {
     Reset: '\x1b[0m',
@@ -41,41 +41,42 @@ const colors = {
     BgGray: '\x1b[100m',
 };
 
-export const outputPaintEvent = (eventData) => {
-    var message = '';
-    message += (eventData.uid ? eventData.uid.toString() : "").padEnd(7) + ` (${eventData.x}, ${eventData.y}) -> rgb(${eventData.r}, ${eventData.g}, ${eventData.b}) `;
-    switch (eventData.status) {
-        case paintStatus.PENDING: message += colors.FgCyan + "Pending"; break;
-        case paintStatus.PAINTING: message += colors.FgBlue + "Painting"; break;
-        case paintStatus.SUCCESS: message += colors.FgGreen + "Success"; break;
-        case paintStatus.ALREADY_PAINTED: message += colors.FgGray + "Already painted"; break;
-        case paintStatus.COOLING: message += colors.FgYellow + "Cooling"; break;
-        case paintStatus.TOKEN_INVALID: message += colors.FgRed + "Token invalid"; break;
-        case paintStatus.REQUEST_FAILED: message += colors.FgRed + "Request failed"; break;
-        case paintStatus.NO_PERMISSION: message += colors.FgRed + "No permission"; break;
-        case paintStatus.SERVER_ERROR: message += colors.FgMagenta + "Server error"; break;
-        case paintStatus.UNKNOWN_ERROR: message += colors.FgMagenta + "Unknown error"; break;
-    }
-    message += colors.Reset + '\n';
-    return message;
-};
-
 export class ReportManager {
-    private logs: string[];
+    private logs: string[] = [];
 
-    log(msg: string) { this.logs.push(msg); }
+    log(msg: string): void {
+        this.logs.push(msg);
+    }
+
+    private outputPaintEvent(eventData: PaintEventData): string {
+        var message = '';
+        message += (eventData.uid ? eventData.uid.toString() : "").padEnd(7) + ` (${eventData.x}, ${eventData.y}) -> rgb(${eventData.r}, ${eventData.g}, ${eventData.b}) `;
+        switch (eventData.status) {
+            case paintStatus.PENDING: message += colors.FgCyan + "Pending"; break;
+            case paintStatus.PAINTING: message += colors.FgBlue + "Painting"; break;
+            case paintStatus.SUCCESS: message += colors.FgGreen + "Success"; break;
+            case paintStatus.ALREADY_PAINTED: message += colors.FgGray + "Already painted"; break;
+            case paintStatus.COOLING: message += colors.FgYellow + "Cooling"; break;
+            case paintStatus.TOKEN_INVALID: message += colors.FgRed + "Token invalid"; break;
+            case paintStatus.REQUEST_FAILED: message += colors.FgRed + "Request failed"; break;
+            case paintStatus.NO_PERMISSION: message += colors.FgRed + "No permission"; break;
+            case paintStatus.SERVER_ERROR: message += colors.FgMagenta + "Server error"; break;
+            case paintStatus.UNKNOWN_ERROR: message += colors.FgMagenta + "Unknown error"; break;
+        }
+        message += colors.Reset + '\n';
+        return message;
+    }
 
     startReport() {
         setInterval(() => {
             var message = '';
-            for (const uid in tokenManager.tokens) {
-                const { token, info, error, lastUsed } = this.tokenManager.tokens[uid];
-                message += uid.padEnd(7) + ' ' + colors.Underscore;
+            for (const [uid, { token, info, error, lastUsed }] of tokenManager.tokens) {
+                message += uid.toString().padEnd(7) + ' ' + colors.Underscore;
                 if (token) { message += colors.FgGreen + token; }
                 else { message += colors.FgRed + 'No token'.padEnd(36); }
                 message += colors.Reset + ' ';
                 if (isCooledDown(uid)) { message += colors.FgGreen + 'COOLED'; }
-                else { message += colors.FgRed + ((config.cd * 1000 - (new Date() - lastUsed)) / 1000).toFixed(1).padStart(5) + "s"; }
+                else { message += colors.FgRed + ((config.cd * 1000 - (new Date().getTime() - lastUsed?.getTime())) / 1000).toFixed(1).padStart(5) + "s"; }
                 message += colors.Reset + ' ';
                 if (error) { message += colors.BgRed + error + colors.Reset + ' '; }
                 if (info) { message += info + ' '; }
@@ -83,32 +84,32 @@ export class ReportManager {
             }
             message += `\n`;
 
-            message += `WebSocket: `;
-            switch (this.paintboardSocket.readyState) {
-                case WebSocket.CONNECTING:
-                    message += colors.FgYellow + 'CONNECTING';
-                    break;
-                case WebSocket.OPEN:
-                    message += colors.FgGreen + 'OPEN';
-                    break;
-                case WebSocket.CLOSING:
-                    message += colors.FgYellow + 'CLOSING';
-                    break;
-                case WebSocket.CLOSED:
-                    message += colors.FgRed + 'CLOSED';
-            }
-            message += colors.Reset + '\n';
-            message += `Last heartbeat time: ${lastHeartbeatTime}\n`;
-            message += `Painted: ${this.paintEvents.done.length}  Painting: ${this.paintEvents.painting.size}  Pending: ${this.paintEvents.pending.length}\n\n`;
+            // message += `WebSocket: `;
+            // switch (this.paintboardSocket.readyState) {
+            //     case WebSocket.CONNECTING:
+            //         message += colors.FgYellow + 'CONNECTING';
+            //         break;
+            //     case WebSocket.OPEN:
+            //         message += colors.FgGreen + 'OPEN';
+            //         break;
+            //     case WebSocket.CLOSING:
+            //         message += colors.FgYellow + 'CLOSING';
+            //         break;
+            //     case WebSocket.CLOSED:
+            //         message += colors.FgRed + 'CLOSED';
+            // }
+            // message += colors.Reset + '\n';
+            // message += `Last heartbeat time: ${lastHeartbeatTime}\n`;
+            // message += `Painted: ${this.paintEvents.done.length}  Painting: ${this.paintEvents.painting.size}  Pending: ${this.paintEvents.pending.length}\n\n`;
 
-            for (let i = 0; i < Math.min(config.paintOldLogSize, this.paintEvents.done.length); i++) { message += outputPaintEvent(this.paintEvents.done[this.paintEvents.done.length - 1 - i]); }
-            for (const paintEvent of this.paintEvents.painting.values()) { message += outputPaintEvent(paintEvent); }
-            for (let i = 0; i < Math.min(config.paintLogSize, this.paintEvents.pending.length); i++) { message += outputPaintEvent(this.paintEvents.pending[i]); }
-            message += `\n`;
+            // for (let i = 0; i < Math.min(config.paintOldLogSize, this.paintEvents.done.length); i++) { message += this.outputPaintEvent(this.paintEvents.done[this.paintEvents.done.length - 1 - i]); }
+            // for (const paintEvent of this.paintEvents.painting.values()) { message += this.outputPaintEvent(paintEvent); }
+            // for (let i = 0; i < Math.min(config.paintLogSize, this.paintEvents.pending.length); i++) { message += this.outputPaintEvent(this.paintEvents.pending[i]); }
+            // message += `\n`;
 
-            for (let i = 0; i < Math.min(config.logSize, this.logs.length); i++) {
-                message += this.logs[this.logs.length - 1 - i] + '\n';
-            }
+            // for (let i = 0; i < Math.min(config.logSize, this.logs.length); i++) {
+            //     message += this.logs[this.logs.length - 1 - i] + '\n';
+            // }
 
             console.clear();
             console.log(message);
@@ -117,7 +118,7 @@ export class ReportManager {
 }
 
 export const reportManager = new ReportManager(
-    tokenStatus,
+    tokenManager,
     paintEvents,
     paintboardSocket
 );

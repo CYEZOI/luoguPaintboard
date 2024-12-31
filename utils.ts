@@ -1,16 +1,3 @@
-export const paintStatus = {
-    PENDING: -1,
-    PAINTING: 0,
-    SUCCESS: 1,
-    ALREADY_PAINTED: 2,
-    COOLING: 10,
-    TOKEN_INVALID: 11,
-    REQUEST_FAILED: 12,
-    NO_PERMISSION: 13,
-    SERVER_ERROR: 14,
-    UNKNOWN_ERROR: 15,
-}
-
 export const uintToUint8Array = (uint, bytes) => {
     const array = new Uint8Array(bytes);
     for (let i = 0; i < bytes; i++) {
@@ -26,3 +13,15 @@ export const tokenToUint8Array = (token) => {
         tokenBytes[i] = parseInt(byte, 16));
     return tokenBytes;
 };
+
+export class RGB {
+    r: number;
+    g: number;
+    b: number;
+
+    constructor(r: number, g: number, b: number) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+    }
+}
