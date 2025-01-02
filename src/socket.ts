@@ -21,7 +21,7 @@ const WebSocketMessageCodes = {
 };
 
 export class Socket {
-    public readonly paintboardSocket: WebSocket;
+    public paintboardSocket: WebSocket;
     public readonly socketOpen: Promise<void>;
     private readonly sendQueue: ArrayBuffer[] = [];
 
@@ -41,8 +41,15 @@ export class Socket {
         this.paintboardSocket.addEventListener('message', (event: WebSocket.MessageEvent) => (async () => {
             await this.handleMessage(event);
         })());
-        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { console.error(`WebSocket 出错：${err.message}。`); });
-        this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => { console.error(`WebSocket 关闭：${reason.code} ${reason.reason}。`); });
+        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { report.log(`WebSocket 出错：${err.message}。`); });
+        this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
+            report.log(`WebSocket 关闭：${reason.code} ${reason.reason}。`);
+            setTimeout(() => {
+                report.log('尝试重连...');
+                this.paintboardSocket = new WebSocket(config.wsUrl);
+                this.setupSocket();
+            });
+        });
     }
 
     async handleMessage(event: WebSocket.MessageEvent) {

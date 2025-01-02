@@ -5,7 +5,7 @@ import { painter } from './painter';
 type ImageData = {
     width: number;
     height: number;
-    pixelData: RGB[];
+    pixelData: Map<POS, RGB>;
 }
 
 export class Image {
@@ -21,7 +21,7 @@ export class Image {
         this.imageData = {
             width: metadata.width!,
             height: metadata.height!,
-            pixelData: []
+            pixelData: new Map(),
         };
         const channels = metadata.channels!;
 
@@ -30,7 +30,7 @@ export class Image {
             const r = pixels[i] as number;
             const g = pixels[i + 1] as number;
             const b = pixels[i + 2] as number;
-            this.imageData.pixelData.push(new RGB(r, g, b));
+            this.imageData.pixelData.set(new POS(i / channels % metadata.width!, Math.floor(i / channels / metadata.width!)), new RGB(r, g, b));
         }
     }
 
@@ -44,11 +44,51 @@ export class Image {
                     }
                 }, 1000);
             });
-            this.imageData!.pixelData.forEach((pixel, index) => {
-                const x = initX + index % this.imageData!.width;
-                const y = initY + Math.floor(index / this.imageData!.width);
+            const pixels = Array.from(this.imageData!.pixelData);
+            for (let i = pixels.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const temp = pixels[i]!;
+                pixels[i] = pixels[j]!;
+                pixels[j] = temp;
+            }
+            for (const [pos, pixel] of pixels) {
+                const x = initX + pos.x;
+                const y = initY + pos.y;
                 painter.paint(pixel, new POS(x, y));
-            });
+            }
+            // for (const [pos, pixel] of this.imageData!.pixelData) {
+            //     const x = initX + pos.x;
+            //     const y = initY + pos.y;
+            //     painter.paint(pixel, new POS(x, y));
+            // }
         }, 1000);
     }
+
+    getPaintRate() {
+        var painted = 0;
+        for (const [pos, pixel] of this.imageData!.pixelData) {
+            if (painter.boardData.get(pos.toNumber())?.toOutputString() === pixel.toOutputString()) {
+                painted++;
+            }
+        }
+        return painted / this.imageData!.pixelData.size;
+    }
 }
+
+export class Images {
+    private readonly images: Image[] = [];
+
+    addImage(imagePath: string, init: POS) {
+        const image = new Image(imagePath);
+        image.loadImage().then(() => {
+            image.maintain(init.x, init.y);
+        });
+        this.images.push(image);
+    }
+
+    getPaintRate() {
+        return this.images.reduce((acc, image) => acc + image.getPaintRate(), 0) / this.images.length;
+    }
+}
+
+export const images = new Images();

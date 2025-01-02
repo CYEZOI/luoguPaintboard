@@ -1,7 +1,9 @@
+import { WebSocket } from 'ws';
 import { config } from './config';
 import { painter } from './painter';
 import { socket } from './socket';
 import { tokens } from './token';
+import { images } from './image';
 
 const colors = {
     Reset: '\x1b[0m',
@@ -79,8 +81,10 @@ export class Report {
             message += colors.Reset + '\n';
             message += `Last heartbeat time: ` + color(colors.FgBlue, this.lastHeartbeat?.toLocaleString()) + `\n`;
             message += `Last paintboard refresh: ` + color(colors.FgBlue, this.lastPaintboardRefresh?.toLocaleString()) + ` ` + color(colors.FgRed, this.lastPaintboardRefreshMessage) + `\n`;
-            message += `Painted: ${painter.paintEvents.done.length}  Painting: ${painter.paintEvents.painting.size}  Pending: ${painter.paintEvents.pending.length}\n\n`;
+            message += `Painted: ${painter.paintEvents.done.length}  Painting: ${painter.paintEvents.painting.size}  Pending: ${painter.paintEvents.pending.length}\n`;
+            message += `Paint rate: ${(images.getPaintRate() * 100).toFixed(2)}%\n`;
 
+            message += `\n`;
             for (let i = 0; i < Math.min(config.logSize, this.logs.length); i++) {
                 message += this.logs[this.logs.length - 1 - i] + '\n';
             }

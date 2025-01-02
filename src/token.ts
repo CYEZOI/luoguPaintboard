@@ -33,6 +33,9 @@ export class Tokens {
 
     async fetchToken(uid: number) {
         const token = this.tokens.get(uid)!;
+        token.info = 'Getting token';
+        token.error = '';
+        this.tokens.set(uid, token);
         if (token.token) {
             token.token = null;
         }
@@ -57,6 +60,7 @@ export class Tokens {
             }
         } catch (err) {
             token.error = `Request token failed: ${err}`;
+            setTimeout(() => { this.fetchToken(uid); }, 1000 * config.cdRetry);
         }
         this.tokens.set(uid, token);
     }
