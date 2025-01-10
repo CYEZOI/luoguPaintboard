@@ -55,7 +55,7 @@ export class Report {
             for (const [uid, { token, info, error, lastUsed }] of tokens.tokens) {
                 message += uid.toString().padEnd(7) + ' ';
                 if (!token) { message += color(colors.FgRed, 'ERR '); }
-                else if (tokens.isCooledDown(uid)) { message += color(colors.FgGreen, 'OK  '); }
+                else if (tokens.isCooledDown(uid)) { message += color(colors.FgGreen, 'COOL'); }
                 else { message += color(colors.FgRed, ((config.cd * 1000 - (new Date().getTime() - lastUsed!.getTime())) / 1000).toFixed(1).padStart(4)); }
                 message += ' ';
                 if (error) { message += color(colors.BgRed, error) + ' '; }

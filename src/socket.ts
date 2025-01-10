@@ -90,12 +90,12 @@ export class Socket {
                             break;
                         case WebSocketMessageCodes.COOLING:
                             paintEvent.status = PaintStatus.COOLING;
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.retry)));
                             break;
                         case WebSocketMessageCodes.TOKEN_INVALID:
                             paintEvent.status = PaintStatus.TOKEN_INVALID;
                             await tokens.fetchToken(paintEvent.uid!);
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.cdRetry)));
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.retry)));
                             break;
                         case WebSocketMessageCodes.REQUEST_FAILED:
                             paintEvent.status = PaintStatus.REQUEST_FAILED;

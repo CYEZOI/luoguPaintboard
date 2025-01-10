@@ -40,7 +40,7 @@ export class Tokens {
             token.token = null;
         }
         try {
-            const res = await fetch(`${config.httpsUrl}/api/auth/gettoken`, {
+            const res = await fetch(`${config.httpUrl}/api/auth/gettoken`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ export class Tokens {
             }
         } catch (err) {
             token.error = `Request token failed: ${err}`;
-            setTimeout(() => { this.fetchToken(uid); }, 1000 * config.cdRetry);
+            setTimeout(() => { this.fetchToken(uid); }, 1000 * config.retry);
         }
         this.tokens.set(uid, token);
     }

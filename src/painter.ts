@@ -56,7 +56,7 @@ const saveToImage = async () => {
             ctx.fillRect(x, y, 1, 1);
         }
     }
-    const out = createWriteStream('board.jpeg');
+    const out = createWriteStream('board.jpg');
     const stream = canvas.createJPEGStream();
     stream.pipe(out);
     await new Promise((resolve) => {
@@ -124,7 +124,7 @@ export class Painter {
 
     refreshPaintboard = async () => {
         try {
-            const res = await fetch(`${config.httpsUrl}/api/paintboard/getboard`);
+            const res = await fetch(`${config.httpUrl}/api/paintboard/getboard`);
             const byteArray = new Uint8Array(await res.arrayBuffer());
             if (byteArray.length !== config.width * config.height * 3) {
                 report.paintboardRefresh('Paintboard data length mismatch.');

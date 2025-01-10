@@ -24,11 +24,13 @@ export const config = {
         [1590878, '05cvuj4b'],
     ]),
     cd: 30, // 每个点绘图的冷却时间
-    cdRetry: 1, // 如果已经到时间但是服务器返回正在冷却，那么再等待多久
+    retry: 1, // 如果已经到时间但是服务器返回正在冷却，那么再等待多久
     logSize: 5, // 显示的日志数量
     width: 1000, // 画板宽度
     height: 600, // 画板高度
     refreshInterval: 60, // 画板整体刷新间隔
-    httpsUrl: 'https://api.paintboard.ayakacraft.com:32767',
-    wsUrl: 'wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws',
+    // httpUrl: 'https://api.paintboard.ayakacraft.com:32767',
+    // wsUrl: 'wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws',
+    httpUrl: 'http://real.cyezoi.com:32767',
+    wsUrl: 'ws://real.cyezoi.com:32767/api/paintboard/ws',
 };
