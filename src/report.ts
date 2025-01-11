@@ -3,7 +3,7 @@ import { config } from './config';
 import { painter } from './painter';
 import { socket } from './socket';
 import { tokens } from './token';
-import { images } from './image';
+import { setIntervalImmediately } from './utils';
 
 const colors = {
     Reset: '\x1b[0m',
@@ -50,13 +50,13 @@ export class Report {
     }
 
     startReport() {
-        setInterval(() => {
+        setIntervalImmediately(() => {
             var message = '';
-            for (const [uid, { token, info, error, lastUsed }] of tokens.tokens) {
+            for (const [uid, { token, info, error, lastUsed }] of tokens.getTokens()) {
                 message += uid.toString().padEnd(7) + ' ';
                 if (!token) { message += color(colors.FgRed, 'ERR '); }
                 else if (tokens.isCooledDown(uid)) { message += color(colors.FgGreen, 'COOL'); }
-                else { message += color(colors.FgRed, ((config.cd * 1000 - (new Date().getTime() - lastUsed!.getTime())) / 1000).toFixed(1).padStart(4)); }
+                else { message += color(colors.FgRed, ((config.pb.cd - (new Date().getTime() - lastUsed!.getTime())) / 1000).toFixed(1).padStart(4)); }
                 message += ' ';
                 if (error) { message += color(colors.BgRed, error) + ' '; }
                 if (info) { message += color(colors.FgCyan, info) + ' '; }
@@ -82,10 +82,9 @@ export class Report {
             message += `Last heartbeat time: ` + color(colors.FgBlue, this.lastHeartbeat?.toLocaleString()) + `\n`;
             message += `Last paintboard refresh: ` + color(colors.FgBlue, this.lastPaintboardRefresh?.toLocaleString()) + ` ` + color(colors.FgRed, this.lastPaintboardRefreshMessage) + `\n`;
             message += `Painted: ${painter.paintEvents.done.length}  Painting: ${painter.paintEvents.painting.size}  Pending: ${painter.paintEvents.pending.length}\n`;
-            message += `Paint rate: ${(images.getPaintRate() * 100).toFixed(2)}%\n`;
 
             message += `\n`;
-            for (let i = 0; i < Math.min(config.logSize, this.logs.length); i++) {
+            for (let i = 0; i < Math.min(config.log.size, this.logs.length); i++) {
                 message += this.logs[this.logs.length - 1 - i] + '\n';
             }
 

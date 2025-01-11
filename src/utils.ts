@@ -15,47 +15,20 @@ export const tokenToUint8Array = (token: string) => {
     return tokenBytes;
 };
 
+export const setIntervalImmediately = (callback: () => void, interval: number) => {
+    callback();
+    return setInterval(callback, interval);
+}
+
 export class RGB {
-    r: number;
-    g: number;
-    b: number;
-
-    constructor(r: number, g: number, b: number) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-    }
-
-    toOutputString = (): string => {
-        return `#${(this.r << 16 | this.g << 8 | this.b).toString(16).toUpperCase().padStart(6, '0')}`;
-    }
-
-    toUint8Array = (): Uint8Array => {
-        return new Uint8Array([this.r, this.g, this.b]);
-    }
+    constructor(public readonly r: number, public readonly g: number, public readonly b: number) { }
+    toOutputString = (): string => { return `#${(this.r << 16 | this.g << 8 | this.b).toString(16).toUpperCase().padStart(6, '0')}`; }
+    toUint8Array = (): Uint8Array => { return new Uint8Array([this.r, this.g, this.b]); }
 }
 
 export class POS {
-    x: number;
-    y: number;
-
-    constructor(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-    }
-
-    toOutputString = (): string => {
-        return `(${this.x.toString().padEnd(3)}, ${this.y.toString().padEnd(3)})`;
-    }
-
-    toUint8Array = (): Uint8Array => {
-        return new Uint8Array([
-            ...uintToUint8Array(this.x, 2),
-            ...uintToUint8Array(this.y, 2),
-        ]);
-    }
-
-    toNumber = (): number => {
-        return this.x * config.width + this.y;
-    }
+    constructor(public readonly x: number, public readonly y: number) { }
+    toOutputString = (): string => { return `(${this.x.toString().padEnd(3)}, ${this.y.toString().padEnd(3)})`; }
+    toUint8Array = (): Uint8Array => { return new Uint8Array([...uintToUint8Array(this.x, 2), ...uintToUint8Array(this.y, 2),]); }
+    toNumber = (): number => { return this.x * config.pb.width + this.y; }
 }

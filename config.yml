@@ -1,0 +1,43 @@
+token:
+  pastes: 
+    246316: "xteor6v6"
+    280823: "1ze6326t"
+    286448: "dipgjcvv"
+    286471: "7b5tzo8w"
+    450211: "jansj9zt"
+    564728: "3r21cpoj"
+    572814: "wv1onqg9"
+    583610: "ng3gcz92"
+    638491: "mrosnexg"
+    646208: "d6ggyum6"
+    705374: "5gw9l8hj"
+    722264: "myeohyma"
+    726138: "w7oocfcy"
+    780309: "8bwa2z3t"
+    785784: "wvv5abqo"
+    917745: "be89cjsa"
+    1025157: "zj80hbjj"
+    1392381: "cteoolcs"
+    1426327: "r7avz4x7"
+    1429876: "i16ppyn0"
+    1456652: "atuzwgcc"
+    # 1590878: "05cvuj4b"
+
+pb:
+  width: 1000 # 画板宽度 (px)
+  height: 600 # 画板高度 (px)
+  random: true # 是否启用随机顺序绘图
+  refresh: 30000 # 画板整体刷新间隔 (ms)
+  cd: 10 # 每个点绘图的冷却时间 (ms)
+  retryCd: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久 (ms)
+
+socket:
+  http: "https://pb.cyezoi.com"
+  # http: "https://api.paintboard.ayakacraft.com:32767"
+  ws: "wss://pb.cyezoi.com/api/paintboard/ws"
+  # ws: "wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws"
+  batch: true # 是否启用粘包
+
+log:
+  size: 10 # 显示的日志数量
+ 

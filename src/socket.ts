@@ -3,7 +3,8 @@ import { config } from './config';
 import { tokens } from './token';
 import { painter, PaintEvent, PaintStatus } from './painter';
 import { report } from './report';
-import { POS, RGB } from './utils';
+import { POS, RGB, setIntervalImmediately } from './utils';
+import { images } from './image';
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -26,7 +27,7 @@ export class Socket {
     private readonly sendQueue: ArrayBuffer[] = [];
 
     constructor() {
-        this.paintboardSocket = new WebSocket(config.wsUrl);
+        this.paintboardSocket = new WebSocket(config.socket.ws);
         this.setupSocket();
         this.socketOpen = new Promise((resolve) => {
             this.paintboardSocket.onopen = () => {
@@ -43,10 +44,10 @@ export class Socket {
         })());
         this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { report.log(`WebSocket 出错：${err.message}。`); });
         this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
-            report.log(`WebSocket 关闭：${reason.code} ${reason.reason}。`);
+            report.log(`WebSocket closed: ${reason.code} ${reason.reason}。`);
             setTimeout(() => {
-                report.log('尝试重连...');
-                this.paintboardSocket = new WebSocket(config.wsUrl);
+                report.log('Reconnecting...');
+                this.paintboardSocket = new WebSocket(config.socket.ws);
                 this.setupSocket();
             });
         });
@@ -71,6 +72,7 @@ export class Socket {
                     const color = new RGB(colorR, colorG, colorB);
                     offset += 7;
                     painter.boardData.set(pos.toNumber(), color);
+                    images.checkColor(pos, color);
                     break;
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
@@ -90,12 +92,12 @@ export class Socket {
                             break;
                         case WebSocketMessageCodes.COOLING:
                             paintEvent.status = PaintStatus.COOLING;
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.retry)));
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.pb.cd - config.pb.retryCd)));
                             break;
                         case WebSocketMessageCodes.TOKEN_INVALID:
                             paintEvent.status = PaintStatus.TOKEN_INVALID;
-                            await tokens.fetchToken(paintEvent.uid!);
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - 1000 * (config.cd - config.retry)));
+                            await tokens.getToken(paintEvent.uid!)!.fetchToken();
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.pb.cd - config.pb.retryCd)));
                             break;
                         case WebSocketMessageCodes.REQUEST_FAILED:
                             paintEvent.status = PaintStatus.REQUEST_FAILED;
@@ -108,16 +110,16 @@ export class Socket {
                             break;
                         default:
                             paintEvent.status = PaintStatus.UNKNOWN_ERROR;
-                            report.log(`未知的返回码：${code}`);
+                            report.log(`Unknown paint status: ${code}`);
                     }
                     painter.paintEvents.done.push(paintEvent);
                     if (paintEvent.status !== PaintStatus.SUCCESS) {
-                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.color, paintEvent.pos, PaintStatus.PENDING));
+                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.pos, paintEvent.color, PaintStatus.PENDING));
                     }
                     break;
                 }
                 default:
-                    report.log(`未知的消息类型：${type}`);
+                    report.log(`Unknown message type: ${type}`);
             }
         }
     }
@@ -127,10 +129,25 @@ export class Socket {
     }
 
     startSending() {
-        setInterval(() => {
+        setIntervalImmediately(() => {
             if (this.paintboardSocket.readyState === WebSocket.OPEN) {
-                while (this.sendQueue.length > 0) {
-                    this.paintboardSocket.send(this.sendQueue.shift()!);
+                const tempQueue = this.sendQueue.splice(0, this.sendQueue.length);
+                if (tempQueue.length === 0) {
+                    return;
+                }
+                if (config.socket.batch) {
+                    const buffer = new Uint8Array(tempQueue.reduce((acc, cur) => acc + cur.byteLength, 0));
+                    let offset = 0;
+                    for (const item of tempQueue) {
+                        buffer.set(new Uint8Array(item), offset);
+                        offset += item.byteLength;
+                    }
+                    this.paintboardSocket.send(buffer);
+                }
+                else {
+                    for (const item of tempQueue) {
+                        this.paintboardSocket.send(item);
+                    }
                 }
             }
         }, 100);

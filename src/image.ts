@@ -2,76 +2,39 @@ import sharp from 'sharp';
 import { POS, RGB } from './utils';
 import { painter } from './painter';
 
-type ImageData = {
-    width: number;
-    height: number;
-    pixelData: Map<POS, RGB>;
-}
-
 export class Image {
-    private readonly image: sharp.Sharp;
-    private imageData: ImageData | null = null;
+    private image!: sharp.Sharp;
+    public width!: number;
+    public height!: number;
+    public readonly pixelData: Map<number, RGB> = new Map();
+    private readonly init: POS;
+    public load: Promise<void>;
 
-    constructor(imagePath: string) {
+    constructor(imagePath: string, init: POS) {
         this.image = sharp(imagePath);
+        this.init = init;
+        this.load = (async () => {
+            const metadata = await this.image.metadata();
+            this.width = metadata.width!;
+            this.height = metadata.height!;
+            const channels = metadata.channels!;
+
+            const pixels = await this.image.raw().toBuffer();
+            for (let i = 0; i < pixels.length; i += channels) {
+                const pos = new POS(i / channels % this.width, Math.floor(i / channels / this.width))
+                const color = new RGB(pixels[i]!, pixels[i + 1]!, pixels[i + 2]!);
+                this.pixelData.set(pos.toNumber(), color);
+                painter.paint(this.toBoardPos(pos), color);
+            }
+        })();
     }
 
-    async loadImage() {
-        const metadata = await this.image.metadata();
-        this.imageData = {
-            width: metadata.width!,
-            height: metadata.height!,
-            pixelData: new Map(),
-        };
-        const channels = metadata.channels!;
-
-        const pixels = await this.image.raw().toBuffer();
-        for (let i = 0; i < pixels.length; i += channels) {
-            const r = pixels[i] as number;
-            const g = pixels[i + 1] as number;
-            const b = pixels[i + 2] as number;
-            this.imageData.pixelData.set(new POS(i / channels % metadata.width!, Math.floor(i / channels / metadata.width!)), new RGB(r, g, b));
-        }
+    public toBoardPos(pos: POS): POS {
+        return new POS(this.init.x + pos.x, this.init.y + pos.y);
     }
 
-    maintain(initX: number, initY: number) {
-        setInterval(async () => {
-            await new Promise<void>((resolve) => {
-                const paintInterval = setInterval(() => {
-                    if (painter.paintEvents.pending.length === 0) {
-                        clearInterval(paintInterval);
-                        resolve();
-                    }
-                }, 1000);
-            });
-            const pixels = Array.from(this.imageData!.pixelData);
-            for (let i = pixels.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const temp = pixels[i]!;
-                pixels[i] = pixels[j]!;
-                pixels[j] = temp;
-            }
-            for (const [pos, pixel] of pixels) {
-                const x = initX + pos.x;
-                const y = initY + pos.y;
-                painter.paint(pixel, new POS(x, y));
-            }
-            // for (const [pos, pixel] of this.imageData!.pixelData) {
-            //     const x = initX + pos.x;
-            //     const y = initY + pos.y;
-            //     painter.paint(pixel, new POS(x, y));
-            // }
-        }, 1000);
-    }
-
-    getPaintRate() {
-        var painted = 0;
-        for (const [pos, pixel] of this.imageData!.pixelData) {
-            if (painter.boardData.get(pos.toNumber())?.toOutputString() === pixel.toOutputString()) {
-                painted++;
-            }
-        }
-        return painted / this.imageData!.pixelData.size;
+    public fromBoardPos(pos: POS): POS {
+        return new POS(pos.x - this.init.x, pos.y - this.init.y);
     }
 }
 
@@ -79,15 +42,20 @@ export class Images {
     private readonly images: Image[] = [];
 
     addImage(imagePath: string, init: POS) {
-        const image = new Image(imagePath);
-        image.loadImage().then(() => {
-            image.maintain(init.x, init.y);
-        });
-        this.images.push(image);
+        this.images.push(new Image(imagePath, init));
     }
 
-    getPaintRate() {
-        return this.images.reduce((acc, image) => acc + image.getPaintRate(), 0) / this.images.length;
+    async checkColor(pos: POS, color: RGB) {
+        for (const image of this.images) {
+            await image.load;
+            const imagePos = image.fromBoardPos(pos);
+            if (imagePos.x >= 0 && imagePos.x < image.width && imagePos.y >= 0 && imagePos.y < image.height) {
+                const imageColor = image.pixelData!.get(imagePos.toNumber())!;
+                if (imageColor.toOutputString() !== color.toOutputString()) {
+                    painter.paint(pos, imageColor);
+                }
+            }
+        }
     }
 }
 

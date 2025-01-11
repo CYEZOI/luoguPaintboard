@@ -3,33 +3,26 @@ import { config } from './config';
 import { tokens } from './token';
 import { createWriteStream } from 'fs';
 import { createCanvas } from 'canvas';
-import { POS, RGB, tokenToUint8Array, uintToUint8Array } from './utils';
+import { POS, RGB, setIntervalImmediately, tokenToUint8Array, uintToUint8Array } from './utils';
 import { socket } from './socket';
 
-export const PaintStatus = {
-    PENDING: -1,
-    PAINTING: 0,
-    SUCCESS: 1,
-    ALREADY_PAINTED: 2,
-    COOLING: 10,
-    TOKEN_INVALID: 11,
-    REQUEST_FAILED: 12,
-    NO_PERMISSION: 13,
-    SERVER_ERROR: 14,
-    UNKNOWN_ERROR: 15,
+export enum PaintStatus {
+    PENDING,
+    PAINTING,
+    SUCCESS,
+    ALREADY_PAINTED,
+    COOLING,
+    TOKEN_INVALID,
+    REQUEST_FAILED,
+    NO_PERMISSION,
+    SERVER_ERROR,
+    UNKNOWN_ERROR,
 };
 
 export class PaintEvent {
-    color: RGB;
-    pos: POS;
     uid?: number;
-    status: number;
 
-    constructor(color: RGB, pos: POS, status: number) {
-        this.color = color;
-        this.pos = pos;
-        this.status = status;
-    }
+    constructor(public readonly pos: POS, public readonly color: RGB, public status: number) { }
 
     toOutputString = (withUid: boolean = false): string => {
         var message = '';
@@ -48,10 +41,10 @@ export type PaintEvents = {
 };
 
 const saveToImage = async () => {
-    const canvas = createCanvas(config.width, config.height);
+    const canvas = createCanvas(config.pb.width, config.pb.height);
     const ctx = canvas.getContext('2d');
-    for (let x = 0; x < config.width; x++) {
-        for (let y = 0; y < config.height; y++) {
+    for (let x = 0; x < config.pb.width; x++) {
+        for (let y = 0; y < config.pb.height; y++) {
             ctx.fillStyle = painter.boardData.get(new POS(x, y).toNumber())!.toOutputString();
             ctx.fillRect(x, y, 1, 1);
         }
@@ -72,29 +65,27 @@ export class Painter {
         done: [],
     }
 
-    paint = (color: RGB, pos: POS): void => {
-        this.paintEvents.pending.push(new PaintEvent(color, pos, PaintStatus.PENDING));
+    paint = (pos: POS, color: RGB): void => {
+        this.paintEvents.pending.push(new PaintEvent(pos, color, PaintStatus.PENDING));
     }
 
     startPainting = async (): Promise<void> => {
         await socket.socketOpen;
-        await this.refreshPaintboard();
+        setIntervalImmediately(this.refreshPaintboard, config.pb.refresh);
         const ID_MAX = Math.pow(2, 32);
         while (true) {
             await new Promise<void>((resolve) => {
-                var intervalId: NodeJS.Timeout | null = null;
-                const check = () => {
+                var intervalId: NodeJS.Timeout;
+                intervalId = setIntervalImmediately(() => {
                     if (this.paintEvents.pending.length > 0) {
-                        intervalId && clearInterval(intervalId);
+                        clearInterval(intervalId);
                         resolve();
                         return;
                     }
-                };
-                check();
-                intervalId = setInterval(check, 100);
+                }, 100);
             });
             const [uid, token] = await tokens.getAvailableToken();
-            const paintEvent: PaintEvent = this.paintEvents.pending.shift()!;
+            const paintEvent: PaintEvent = this.paintEvents.pending.splice(config.pb.random ? Math.floor(Math.random() * this.paintEvents.pending.length) : 0, 1)[0]!;
             const { color, pos } = paintEvent;
             const currentData = this.boardData.get(pos.toNumber());
             if (currentData && currentData.toOutputString() == color.toOutputString()) {
@@ -124,24 +115,24 @@ export class Painter {
 
     refreshPaintboard = async () => {
         try {
-            const res = await fetch(`${config.httpUrl}/api/paintboard/getboard`);
+            const res = await fetch(`${config.socket.http}/api/pb/getboard`);
             const byteArray = new Uint8Array(await res.arrayBuffer());
-            if (byteArray.length !== config.width * config.height * 3) {
+            if (byteArray.length !== config.pb.width * config.pb.height * 3) {
                 report.paintboardRefresh('Paintboard data length mismatch.');
             }
-            for (let y = 0; y < config.height; y++) {
-                for (let x = 0; x < config.width; x++) {
+            for (let y = 0; y < config.pb.height; y++) {
+                for (let x = 0; x < config.pb.width; x++) {
                     this.boardData.set(new POS(x, y).toNumber(), new RGB(
-                        byteArray[y * config.width * 3 + x * 3]!,
-                        byteArray[y * config.width * 3 + x * 3 + 1]!,
-                        byteArray[y * config.width * 3 + x * 3 + 2]!
+                        byteArray[y * config.pb.width * 3 + x * 3]!,
+                        byteArray[y * config.pb.width * 3 + x * 3 + 1]!,
+                        byteArray[y * config.pb.width * 3 + x * 3 + 2]!
                     ));
                 }
             }
             report.paintboardRefresh();
             await saveToImage();
         } catch (err) {
-            report.log((err as Error).message);
+            report.paintboardRefresh(err as string);
         }
     };
 }
