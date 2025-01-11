@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { POS, RGB } from './utils';
 import { painter } from './painter';
+import { pb } from './pb';
 
 export class Image {
     private image!: sharp.Sharp;
@@ -24,7 +25,9 @@ export class Image {
                 const pos = new POS(i / channels % this.width, Math.floor(i / channels / this.width))
                 const color = new RGB(pixels[i]!, pixels[i + 1]!, pixels[i + 2]!);
                 this.pixelData.set(pos.toNumber(), color);
-                painter.paint(this.toBoardPos(pos), color);
+                if (pb.getBoardData(this.toBoardPos(pos))?.toOutputString() !== color.toOutputString()) {
+                    painter.paint(this.toBoardPos(pos), color);
+                }
             }
         })();
     }

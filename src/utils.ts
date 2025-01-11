@@ -30,5 +30,5 @@ export class POS {
     constructor(public readonly x: number, public readonly y: number) { }
     toOutputString = (): string => { return `(${this.x.toString().padEnd(3)}, ${this.y.toString().padEnd(3)})`; }
     toUint8Array = (): Uint8Array => { return new Uint8Array([...uintToUint8Array(this.x, 2), ...uintToUint8Array(this.y, 2),]); }
-    toNumber = (): number => { return this.x * config.pb.width + this.y; }
+    toNumber = (): number => { return this.x * config.pb.height + this.y; }
 }

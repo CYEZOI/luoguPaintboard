@@ -26,6 +26,7 @@ export class Token {
                     paste: this.paste,
                 }),
             });
+            if (res.status !== 200) { throw 'Request token failed'; }
             const data = await res.json();
             if (data.data.errorType) {
                 this.error = `${data.data.errorType} ${data.data.message}`;
@@ -36,7 +37,7 @@ export class Token {
             }
         } catch (err) {
             this.error = `Request token failed: ${err}`;
-            setTimeout(() => { this.fetchToken(); }, config.pb.retryCd);
+            setTimeout(() => { this.fetchToken(); }, config.token.retry);
         }
     }
 }
@@ -58,7 +59,7 @@ export class Tokens {
         if (token.lastUsed == null) {
             return true;
         }
-        return new Date().getTime() - token.lastUsed.getTime() > config.pb.cd;
+        return new Date().getTime() - token.lastUsed.getTime() > config.token.cd;
     }
 
     async getAvailableToken() {

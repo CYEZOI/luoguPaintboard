@@ -1,10 +1,11 @@
 import WebSocket from 'ws';
 import { config } from './config';
 import { tokens } from './token';
-import { painter, PaintEvent, PaintStatus } from './painter';
+import { painter, PaintEvent } from './painter';
 import { report } from './report';
 import { POS, RGB, setIntervalImmediately } from './utils';
 import { images } from './image';
+import { pb } from './pb';
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -22,12 +23,11 @@ const WebSocketMessageCodes = {
 };
 
 export class Socket {
-    public paintboardSocket: WebSocket;
+    public paintboardSocket!: WebSocket;
     public readonly socketOpen: Promise<void>;
     private readonly sendQueue: ArrayBuffer[] = [];
 
     constructor() {
-        this.paintboardSocket = new WebSocket(config.socket.ws);
         this.setupSocket();
         this.socketOpen = new Promise((resolve) => {
             this.paintboardSocket.onopen = () => {
@@ -37,19 +37,20 @@ export class Socket {
     }
 
     setupSocket() {
+        this.paintboardSocket = new WebSocket(config.socket.ws);
         this.paintboardSocket.binaryType = 'arraybuffer';
 
         this.paintboardSocket.addEventListener('message', (event: WebSocket.MessageEvent) => (async () => {
             await this.handleMessage(event);
         })());
-        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { report.log(`WebSocket 出错：${err.message}。`); });
+        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { report.log(`WebSocket error: ${err.message}`); });
         this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
-            report.log(`WebSocket closed: ${reason.code} ${reason.reason}。`);
+            report.log(`WebSocket closed: ${reason.code} ${reason.reason}`);
+            painter.paintEvents.pending.push(...painter.paintEvents.painting.values());
+            painter.paintEvents.painting.clear();
             setTimeout(() => {
-                report.log('Reconnecting...');
-                this.paintboardSocket = new WebSocket(config.socket.ws);
                 this.setupSocket();
-            });
+            }, config.socket.retry);
         });
     }
 
@@ -71,7 +72,7 @@ export class Socket {
                     const colorB = dataView.getUint8(offset + 6);
                     const color = new RGB(colorR, colorG, colorB);
                     offset += 7;
-                    painter.boardData.set(pos.toNumber(), color);
+                    pb.update(pos, color);
                     images.checkColor(pos, color);
                     break;
                 }
@@ -86,35 +87,19 @@ export class Socket {
                     offset += 5;
                     const paintEvent = painter.paintEvents.painting.get(id)!;
                     painter.paintEvents.painting.delete(id);
+                    paintEvent.status = code;
                     switch (code) {
-                        case WebSocketMessageCodes.SUCCESS:
-                            paintEvent.status = PaintStatus.SUCCESS;
-                            break;
-                        case WebSocketMessageCodes.COOLING:
-                            paintEvent.status = PaintStatus.COOLING;
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.pb.cd - config.pb.retryCd)));
-                            break;
+                        // @ts-expect-error
                         case WebSocketMessageCodes.TOKEN_INVALID:
-                            paintEvent.status = PaintStatus.TOKEN_INVALID;
                             await tokens.getToken(paintEvent.uid!)!.fetchToken();
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.pb.cd - config.pb.retryCd)));
+                        case WebSocketMessageCodes.COOLING:
+                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
                             break;
-                        case WebSocketMessageCodes.REQUEST_FAILED:
-                            paintEvent.status = PaintStatus.REQUEST_FAILED;
-                            break;
-                        case WebSocketMessageCodes.NO_PERMISSION:
-                            paintEvent.status = PaintStatus.NO_PERMISSION;
-                            break;
-                        case WebSocketMessageCodes.SERVER_ERROR:
-                            paintEvent.status = PaintStatus.SERVER_ERROR;
-                            break;
-                        default:
-                            paintEvent.status = PaintStatus.UNKNOWN_ERROR;
-                            report.log(`Unknown paint status: ${code}`);
                     }
-                    painter.paintEvents.done.push(paintEvent);
-                    if (paintEvent.status !== PaintStatus.SUCCESS) {
-                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.pos, paintEvent.color, PaintStatus.PENDING));
+                    if (paintEvent.status === WebSocketMessageCodes.SUCCESS) {
+                        painter.paintEvents.done.push(paintEvent);
+                    } else {
+                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.pos, paintEvent.color));
                     }
                     break;
                 }

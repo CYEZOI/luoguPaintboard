@@ -1,3 +1,5 @@
+# 所有时间单位均为毫秒
+
 token:
   pastes: 
     246316: "xteor6v6"
@@ -21,23 +23,29 @@ token:
     1426327: "r7avz4x7"
     1429876: "i16ppyn0"
     1456652: "atuzwgcc"
-    # 1590878: "05cvuj4b"
+    1590878: "05cvuj4b"
+  cd: 10 # 每个点绘图的冷却时间
+  retry: 1000 # token 获取失败后重试间隔
 
 pb:
-  width: 1000 # 画板宽度 (px)
-  height: 600 # 画板高度 (px)
+  width: 1000 # 画板宽度
+  height: 600 # 画板高度
+  refresh: 30000 # 画板整体刷新间隔
+
+painter:
   random: true # 是否启用随机顺序绘图
-  refresh: 30000 # 画板整体刷新间隔 (ms)
-  cd: 10 # 每个点绘图的冷却时间 (ms)
-  retryCd: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久 (ms)
+  retry: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久
 
 socket:
-  http: "https://pb.cyezoi.com"
+  http: "https://pbdm1.uwuwu.us.kg"
+  # http: "https://pb.cyezoi.com"
   # http: "https://api.paintboard.ayakacraft.com:32767"
-  ws: "wss://pb.cyezoi.com/api/paintboard/ws"
+  ws: "wss://pbdm1.uwuwu.us.kg/api/paintboard/ws"
+  # ws: "wss://pb.cyezoi.com/api/paintboard/ws"
   # ws: "wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws"
   batch: true # 是否启用粘包
+  retry: 1000 # 重连间隔
 
-log:
+report:
   size: 10 # 显示的日志数量
  
