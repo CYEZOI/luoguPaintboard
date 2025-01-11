@@ -70,7 +70,7 @@ export class Painter {
                 ...uintToUint8Array(id, 4),
             ]);
             tokens.useToken(uid);
-            socket.send(paintData);
+            socket.send(paintData.buffer);
         }
     }
 }
