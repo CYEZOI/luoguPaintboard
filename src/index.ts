@@ -5,6 +5,6 @@ import { socket } from './socket';
 import { POS } from './utils';
 
 await pb.refreshPaintboard();
-images.addImage('image.jpg', new POS(0, 0));
+images.addImage('image.jpg', new POS(100, 0));
 socket.startSending();
 painter.startPainting();
