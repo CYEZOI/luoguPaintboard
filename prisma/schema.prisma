@@ -9,9 +9,8 @@ datasource db {
 
 model token {
   uid      Int      @id @unique
-  value    String?
+  token    String?
   paste    String
   lastUsed DateTime @default(now())
-  info     String?
-  error    String?
+  message  String?
 }

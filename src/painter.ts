@@ -62,8 +62,6 @@ export class Painter {
             paintEvent.uid = uid;
             this.paintEvents.painting.set(id, paintEvent);
 
-            await tokens.setInfo(uid, paintEvent.toOutputString());
-
             const paintData = new Uint8Array([
                 0xfe,
                 ...pos.toUint8Array(),
