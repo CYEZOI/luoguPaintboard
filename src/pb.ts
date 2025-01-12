@@ -2,7 +2,6 @@ import { createWriteStream } from 'fs';
 import { createCanvas } from 'canvas';
 import { POS, RGB } from './utils';
 import { config } from './config';
-import { report } from './report';
 import { socket } from './socket';
 
 export class PB {
@@ -52,9 +51,11 @@ export class PB {
                     ));
                 }
             }
-            report.paintboardRefresh();
+            // report.paintboardRefresh(); TODO
             await this.saveToImage();
-        } catch (err) { report.paintboardRefresh(err as string); }
+        } catch (err) {
+            // report.paintboardRefresh(err as string); TODO
+        }
         while (this.pendingQueue.length > 0) {
             const [pos, color] = this.pendingQueue.shift()!;
             this.setBoardData(pos, color);

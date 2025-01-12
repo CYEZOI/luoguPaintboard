@@ -24,8 +24,8 @@ token:
     1429876: "i16ppyn0"
     1456652: "atuzwgcc"
     1590878: "05cvuj4b"
-  cd: 10 # 每个点绘图的冷却时间
-  retry: 1000 # token 获取失败后重试间隔
+  cd: 100 # 每个点绘图的冷却时间
+  interval: 1000 # 空 token 时的重试间隔
 
 pb:
   width: 1000 # 画板宽度
@@ -37,10 +37,10 @@ painter:
   retry: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久
 
 socket:
-  http: "https://pbdm1.uwuwu.us.kg"
+  http: "http://pbdm1.uwuwu.us.kg:22767"
   # http: "https://pb.cyezoi.com"
   # http: "https://api.paintboard.ayakacraft.com:32767"
-  ws: "wss://pbdm1.uwuwu.us.kg/api/paintboard/ws"
+  ws: "ws://pbdm1.uwuwu.us.kg:22767/api/paintboard/ws"
   # ws: "wss://pb.cyezoi.com/api/paintboard/ws"
   # ws: "wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws"
   batch: true # 是否启用粘包

@@ -43,13 +43,16 @@ export class Painter {
             await new Promise<void>((resolve) => {
                 var intervalId: NodeJS.Timeout;
                 intervalId = setIntervalImmediately(() => {
-                    if (this.paintEvents.pending.length > 0) {
-                        clearInterval(intervalId);
-                        resolve();
-                    }
+                    if (this.paintEvents.pending.length > 0) { clearInterval(intervalId); resolve(); }
                 }, 100);
             });
-            const [uid, token] = await tokens.getAvailableToken();
+            const { uid, token } = await new Promise<{ uid: number, token: string }>((resolve) => {
+                var intervalId: NodeJS.Timeout;
+                intervalId = setIntervalImmediately(async () => {
+                    const token = await tokens.getAvailableToken();
+                    if (token) { clearInterval(intervalId); resolve(token); }
+                }, 100);
+            });
             const paintEvent: PaintEvent = this.paintEvents.pending.splice(config.painter.random ? Math.floor(Math.random() * this.paintEvents.pending.length) : 0, 1)[0]!;
             const { color, pos } = paintEvent;
             var id = Math.floor(Math.random() * ID_MAX);
@@ -59,7 +62,7 @@ export class Painter {
             paintEvent.uid = uid;
             this.paintEvents.painting.set(id, paintEvent);
 
-            tokens.setInfo(uid, paintEvent.toOutputString());
+            await tokens.setInfo(uid, paintEvent.toOutputString());
 
             const paintData = new Uint8Array([
                 0xfe,
@@ -69,7 +72,7 @@ export class Painter {
                 ...tokenToUint8Array(token),
                 ...uintToUint8Array(id, 4),
             ]);
-            tokens.useToken(uid);
+            tokens.updateUseTime(uid, new Date());
             socket.send(paintData.buffer);
         }
     }

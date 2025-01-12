@@ -2,7 +2,6 @@ import WebSocket from 'ws';
 import { config } from './config';
 import { tokens } from './token';
 import { painter, PaintEvent } from './painter';
-import { report } from './report';
 import { POS, RGB, setIntervalImmediately } from './utils';
 import { images } from './image';
 import { pb } from './pb';
@@ -43,9 +42,12 @@ export class Socket {
         this.paintboardSocket.addEventListener('message', (event: WebSocket.MessageEvent) => (async () => {
             await this.handleMessage(event);
         })());
-        this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => { report.log(`WebSocket error: ${err.message}`); });
-        this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
-            report.log(`WebSocket closed: ${reason.code} ${reason.reason}`);
+        // this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => {
+        //     report.log(`WebSocket error: ${err.message}`); TODO
+        // });
+        this.paintboardSocket.addEventListener('close', () => {
+            // this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
+            // report.log(`WebSocket closed: ${reason.code} ${reason.reason}`); TODO
             painter.paintEvents.pending.push(...painter.paintEvents.painting.values());
             painter.paintEvents.painting.clear();
             setTimeout(() => {
@@ -78,7 +80,7 @@ export class Socket {
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
                     this.paintboardSocket.send(new Uint8Array([0xfb]));
-                    report.heatBeat();
+                    // report.heatBeat(); TODO
                     break;
                 }
                 case WebSocketMessageTypes.PAINT_RESULT: {
@@ -91,7 +93,7 @@ export class Socket {
                     switch (code) {
                         // @ts-expect-error
                         case WebSocketMessageCodes.TOKEN_INVALID:
-                            await tokens.getToken(paintEvent.uid!)!.fetchToken();
+                            await tokens.fetchToken([paintEvent.uid!]);
                         case WebSocketMessageCodes.COOLING:
                             tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
                             break;
@@ -104,7 +106,7 @@ export class Socket {
                     break;
                 }
                 default:
-                    report.log(`Unknown message type: ${type}`);
+                // report.log(`Unknown message type: ${type}`); TODO
             }
         }
     }

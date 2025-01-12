@@ -1,97 +1,55 @@
 import { config } from './config';
+import { prisma } from './db';
 import { setIntervalImmediately } from './utils';
 
-export class Token {
-    lastUsed?: Date;
-    token?: string;
-    info?: string;
-    error?: string;
-
-    constructor(private uid: number, private paste: string) { }
-
-    async fetchToken() {
-        this.info = 'Getting token';
-        this.error = '';
-        if (this.token) {
-            this.token = '';
-        }
-        try {
-            const res = await fetch(`${config.socket.http}/api/auth/gettoken`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    uid: this.uid,
-                    paste: this.paste,
-                }),
-            });
-            if (res.status !== 200) { throw 'Request token failed'; }
-            const data = await res.json();
-            if (data.data.errorType) {
-                this.error = `${data.data.errorType} ${data.data.message}`;
-            }
-            else {
-                this.token = data.data.token;
-                this.info = `Got token`;
-            }
-        } catch (err) {
-            this.error = `Request token failed: ${err}`;
-            setTimeout(() => { this.fetchToken(); }, config.token.retry);
-        }
-    }
-}
-
 export class Tokens {
-    private readonly tokens: Map<number, Token> = new Map();
-
-    constructor() {
-        for (const [uid, paste] of Object.entries(config.token.pastes)) {
-            this.tokens.set(parseInt(uid), new Token(parseInt(uid), paste as string));
-        };
+    async fetchBlankTokenInterval() {
+        setIntervalImmediately(async () => {
+            const tokens = await prisma.token.findMany({ where: { value: null }, });
+            if (tokens.length > 0) { this.fetchToken(tokens.map(token => token.uid)); }
+        }, config.token.interval);
     }
 
-    getToken(uid: number) { return this.tokens.get(uid); }
-    getTokens() { return this.tokens; }
-
-    isCooledDown(uid: number) {
-        const token: Token = this.tokens.get(uid)!;
-        if (token.lastUsed == null) {
-            return true;
+    async fetchToken(uidList?: number[]) {
+        for (const uid of uidList || (await prisma.token.findMany()).map(token => token.uid)) {
+            const token = await prisma.token.findUnique({ where: { uid, }, });
+            if (!token) { continue; }
+            await prisma.token.update({ where: { uid, }, data: { value: null, info: 'Getting token', error: null, }, });
+            try {
+                const res = await fetch(`${config.socket.http}/api/auth/gettoken`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', },
+                    body: JSON.stringify({ uid, paste: token.paste, }),
+                });
+                if (res.status !== 200) { throw 'Request token failed'; }
+                const data = await res.json();
+                if (data.data.errorType) { await prisma.token.update({ where: { uid, }, data: { error: `${data.data.errorType} ${data.data.message}`, }, }); }
+                else { await prisma.token.update({ where: { uid, }, data: { value: data.data.token, info: null, }, }); }
+            } catch (err) {
+                await prisma.token.update({ where: { uid, }, data: { error: `Request token failed: ${err}`, }, });
+            }
         }
+    }
+
+    async getToken(uid: number) { return await prisma.token.findUnique({ where: { uid, }, }); }
+    async getTokens() { return await prisma.token.findMany(); }
+
+    async isCooledDown(uid: number) {
+        const token = await this.getToken(uid);
+        if (!token) { return false; }
+        if (token.lastUsed == null) { return true; }
         return new Date().getTime() - token.lastUsed.getTime() > config.token.cd;
     }
 
     async getAvailableToken() {
-        return new Promise<[number, string]>((resolve) => {
-            var intervalId: NodeJS.Timeout;
-            intervalId = setIntervalImmediately(() => {
-                for (const [uid, token] of this.tokens) {
-                    if (this.isCooledDown(uid) && token.token) {
-                        clearInterval(intervalId);
-                        resolve([uid, token.token]);
-                        break;
-                    }
-                }
-            }, 100);
-        });
+        const token = await prisma.token.findFirst({ where: { value: { not: null }, lastUsed: { lt: new Date(new Date().getTime() - config.token.cd) }, }, });
+        if (!token) { return null; }
+        return { uid: token.uid, token: token.value! };
     }
 
-    useToken(uid: number) {
-        return this.tokens.get(uid)!.lastUsed = new Date();
-    }
-
-    updateUseTime(uid: number, time: Date) {
-        this.tokens.get(uid)!.lastUsed = time;
-    }
-
-    setInfo(uid: number, info: string) {
-        this.tokens.get(uid)!.info = info;
-    }
+    async updateUseTime(uid: number, lastUsed: Date) { await prisma.token.update({ where: { uid, }, data: { lastUsed, }, }); }
+    async setInfo(uid: number, info: string) { await prisma.token.update({ where: { uid, }, data: { info, }, }); }
 }
 
 export const tokens = new Tokens();
-
-for (const [_, token] of tokens.getTokens()) {
-    token.fetchToken();
-}
+tokens.fetchBlankTokenInterval();
