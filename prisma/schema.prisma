@@ -4,13 +4,46 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./dev.sqlite"
+  url      = "file:dev.sqlite"
 }
 
 model token {
-  uid      Int      @id @unique
-  token    String?
-  paste    String
-  lastUsed DateTime @default(now())
-  message  String?
+  uid        Int          @id @unique
+  token      String?
+  paste      String
+  lastUsed   DateTime     @default(now())
+  message    String?
+  paintEvent paintEvent[]
+}
+
+model paintEvent {
+  id     Int    @id @default(autoincrement())
+  pos    Int
+  rgb    Int
+  uid    Int?
+  status Int
+  result Int?
+  random Float
+  token  token? @relation(fields: [uid], references: [uid])
+}
+
+model pb {
+  id        Int      @id @default(autoincrement())
+  time      DateTime @default(now())
+  boardData Bytes?
+  message   String?
+}
+
+model pbDetail {
+  id   Int      @id @default(autoincrement())
+  time DateTime @default(now())
+  pos  Int
+  rgb  Int
+}
+
+model socket {
+  id      Int      @id @default(autoincrement())
+  time    DateTime @default(now())
+  type    Int
+  message String?
 }
