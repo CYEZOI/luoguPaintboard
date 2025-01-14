@@ -4,6 +4,7 @@
         "getboard",
         "gettoken",
         "Luogu",
-        "paintboard"
+        "paintboard",
+        "ungzip"
     ]
 }

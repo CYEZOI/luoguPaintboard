@@ -11,7 +11,7 @@ token:
     572814: "wv1onqg9"
     583610: "ng3gcz92"
     638491: "mrosnexg"
-    # 646208: "d6ggyum6"
+    646208: "d6ggyum6"
     705374: "5gw9l8hj"
     722264: "myeohyma"
     726138: "w7oocfcy"
@@ -25,7 +25,7 @@ token:
     1429876: "i16ppyn0"
     1456652: "atuzwgcc"
     1590878: "05cvuj4b"
-  cd: 1 # 每个点绘图的冷却时间
+  cd: 100 # 每个点绘图的冷却时间
   interval: 1000 # 空 token 时的重试间隔
 
 pb:
@@ -34,16 +34,18 @@ pb:
   refresh: 30000 # 画板整体刷新间隔
 
 painter:
-  random: true # 是否启用随机顺序绘图
+  random: false # 是否启用随机顺序绘图
   retry: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久
 
 socket:
-  http: "http://pbdm1.uwuwu.us.kg:22767"
-  # http: "https://pb.cyezoi.com"
+  # http: "http://pbdm1.uwuwu.us.kg:22767"
+  http: "https://pb.cyezoi.com"
   # http: "https://api.paintboard.ayakacraft.com:32767"
-  ws: "ws://pbdm1.uwuwu.us.kg:22767/api/paintboard/ws"
-  # ws: "wss://pb.cyezoi.com/api/paintboard/ws"
+
+  # ws: "ws://pbdm1.uwuwu.us.kg:22767/api/paintboard/ws"
+  ws: "wss://pb.cyezoi.com/api/paintboard/ws"
   # ws: "wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws"
+  
   batch: true # 是否启用粘包
   retry: 1000 # 重连间隔
 

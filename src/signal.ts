@@ -1,6 +1,5 @@
 import process from 'node:process';
 import { logger } from './logger';
-import { painter } from './painter';
 import { socket } from './socket';
 import { prisma } from './db';
 
@@ -11,8 +10,7 @@ const signalHandler = async (signal: NodeJS.Signals) => {
     logger.info(`Received signal: ${signal}, cleaning up...`);
     closing = true;
     for (const promise of waitList) { await promise; }
-    await painter.clear();
-    await socket.close();
+    socket.close();
     await prisma.$disconnect();
     logger.info('Exiting...');
     process.exit(0);

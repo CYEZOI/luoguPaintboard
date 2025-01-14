@@ -5,20 +5,10 @@ import { painter } from './painter';
 import { POS, RGB, setIntervalImmediately } from './utils';
 import { images } from './image';
 import { pb } from './pb';
-import { prisma } from './db';
 import { logger } from './logger';
-import { PrismaClient } from '@prisma/client';
 import { closing } from './signal';
 
 const socketLogger = logger.child({ module: 'socket' });
-
-enum SOCKET_TYPE {
-    OPEN,
-    CLOSE,
-    ERROR,
-    HEARTBEAT,
-    UNKNOWN_MESSAGE,
-};
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -40,12 +30,11 @@ export class Socket {
     public readonly socketOpen: Promise<void>;
     private readonly sendQueue: ArrayBuffer[] = [];
 
-    constructor(private readonly prismaSocket: PrismaClient['socket']) {
+    constructor() {
         this.setupSocket();
         this.socketOpen = new Promise((resolve) => {
             this.paintboardSocket.addEventListener('open', async () => {
                 socketLogger.info('WebSocket opened');
-                await this.prismaSocket.create({ data: { type: SOCKET_TYPE.OPEN, }, });
                 resolve();
             });
         });
@@ -55,14 +44,14 @@ export class Socket {
         this.paintboardSocket = new WebSocket(config.socket.ws);
         this.paintboardSocket.binaryType = 'arraybuffer';
 
-        this.paintboardSocket.addEventListener('message', async (event: WebSocket.MessageEvent) => { await this.handleMessage(event); });
+        this.paintboardSocket.addEventListener('message', async (event: WebSocket.MessageEvent) => {
+            await this.handleMessage(event);
+        });
         this.paintboardSocket.addEventListener('error', async (err: WebSocket.ErrorEvent) => {
             socketLogger.error(`WebSocket error: ${err.message}`);
-            await this.prismaSocket.create({ data: { type: SOCKET_TYPE.ERROR, message: `WebSocket error: ${err.message}`, }, });
         });
         this.paintboardSocket.addEventListener('close', async (reason: WebSocket.CloseEvent) => {
             socketLogger.error(`WebSocket closed: ${reason.code} ${reason.reason}`);
-            await this.prismaSocket.create({ data: { type: SOCKET_TYPE.CLOSE, message: `WebSocket closed: ${reason.code} ${reason.reason}`, }, });
             await painter.moveAllPaintingToPending();
             setTimeout(() => { this.setupSocket(); }, config.socket.retry);
         });
@@ -86,13 +75,13 @@ export class Socket {
                     const colorB = dataView.getUint8(offset + 6);
                     const color = new RGB(colorR, colorG, colorB);
                     offset += 7;
-                    pb.update(pos, color);
+                    await pb.update(pos, color);
                     images.checkColor(pos, color);
                     break;
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
                     this.paintboardSocket.send(new Uint8Array([0xfb]));
-                    this.prismaSocket.create({ data: { type: SOCKET_TYPE.HEARTBEAT, }, });
+                    socketLogger.debug('Heartbeat');
                     break;
                 }
                 case WebSocketMessageTypes.PAINT_RESULT: {
@@ -100,7 +89,10 @@ export class Socket {
                     const result = dataView.getUint8(offset + 4);
                     offset += 5;
                     const paintEvent = await painter.getPaintEvent(id);
-                    if (!paintEvent) { return; }
+                    if (!paintEvent) {
+                        socketLogger.warn(`Unknown paint event: ${id}`);
+                        break;
+                    }
                     switch (result) {
                         // @ts-expect-error
                         case WebSocketMessageCodes.TOKEN_INVALID:
@@ -111,13 +103,13 @@ export class Socket {
                     }
                     await painter.donePainting(id, result);
                     if (result !== WebSocketMessageCodes.SUCCESS) {
-                        socketLogger.info(`Repaint event ${id} failed with result ${result}`);
-                        await painter.paint([{ pos: POS.fromNumber(paintEvent.pos), rgb: RGB.fromNumber(paintEvent.rgb) }]);
+                        socketLogger.info(`Paint event ${id} failed with result ${result}`);
+                        await painter.paint([{ pos: paintEvent.pos, rgb: paintEvent.rgb }]);
                     }
                     break;
                 }
                 default:
-                    await this.prismaSocket.create({ data: { type: SOCKET_TYPE.UNKNOWN_MESSAGE, message: `Unknown message type ${type}`, }, });
+                    socketLogger.warn(`Unknown message type: ${type}`);
             }
         }
     };
@@ -149,13 +141,10 @@ export class Socket {
                     }
                 }
             }
-        }, 100);
+        }, 5);
     };
 
-    close = async () => {
-        this.paintboardSocket.close();
-        await this.prismaSocket.create({ data: { type: SOCKET_TYPE.CLOSE, message: 'Manually closed', }, });
-    };
+    close = () => { this.paintboardSocket.close(); };
 };
 
-export const socket = new Socket(prisma.socket);
+export const socket = new Socket();

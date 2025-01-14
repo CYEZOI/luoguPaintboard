@@ -4,3 +4,4 @@ package-lock.json
 pnpm-lock.yaml
 board.jpg
 prisma/dev.sqlite
+pb/
