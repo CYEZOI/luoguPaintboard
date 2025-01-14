@@ -15,6 +15,12 @@ export class PB {
     public getBoardData = (pos: POS): RGB | undefined => { return this.boardData.get(pos.toNumber()); };
     private setBoardData = (pos: POS, color: RGB) => { this.boardData.set(pos.toNumber(), color); };
 
+    constructor() {
+        setInterval(async () => {
+            await this.refreshPaintboard();
+        }, config.pb.refresh);
+    }
+
     update = async (pos: POS, color: RGB) => {
         const now = Date.now();
         await appendFile(`pb/${Math.floor(now / 1000 / 60)}.pe`, Buffer.from([
