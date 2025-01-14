@@ -1,10 +1,11 @@
 import WebSocket from 'ws';
 import { config } from './config';
 import { tokens } from './token';
-import { painter, PaintEvent } from './painter';
+import { painter, PaintEventStatus } from './painter';
 import { POS, RGB, setIntervalImmediately } from './utils';
 import { images } from './image';
 import { pb } from './pb';
+import { prisma } from './db';
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -45,11 +46,13 @@ export class Socket {
         // this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => {
         //     report.log(`WebSocket error: ${err.message}`); TODO
         // });
-        this.paintboardSocket.addEventListener('close', () => {
+        this.paintboardSocket.addEventListener('close', async () => {
             // this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
             // report.log(`WebSocket closed: ${reason.code} ${reason.reason}`); TODO
-            painter.paintEvents.pending.push(...painter.paintEvents.painting.values());
-            painter.paintEvents.painting.clear();
+            await prisma.paintEvent.updateMany({
+                where: { status: PaintEventStatus.PAINTING },
+                data: { status: PaintEventStatus.PENDING },
+            });
             setTimeout(() => {
                 this.setupSocket();
             }, config.socket.retry);
@@ -87,9 +90,9 @@ export class Socket {
                     const id = dataView.getUint32(offset, true);
                     const code = dataView.getUint8(offset + 4);
                     offset += 5;
-                    const paintEvent = painter.paintEvents.painting.get(id)!;
-                    painter.paintEvents.painting.delete(id);
-                    paintEvent.status = code;
+                    const paintEvent = await prisma.paintEvent.findUnique({ where: { id }, });
+                    if (!paintEvent) { return; }
+                    prisma.paintEvent.update({ where: { id }, data: { result: code, }, });
                     switch (code) {
                         // @ts-expect-error
                         case WebSocketMessageCodes.TOKEN_INVALID:
@@ -98,10 +101,12 @@ export class Socket {
                             tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
                             break;
                     }
-                    if (paintEvent.status === WebSocketMessageCodes.SUCCESS) {
-                        painter.paintEvents.done.push(paintEvent);
-                    } else {
-                        painter.paintEvents.pending.push(new PaintEvent(paintEvent.pos, paintEvent.color));
+                    await prisma.paintEvent.update({
+                        where: { id: paintEvent.id },
+                        data: { status: PaintEventStatus.DONE },
+                    });
+                    if (paintEvent.status !== WebSocketMessageCodes.SUCCESS) {
+                        painter.paint(POS.fromNumber(paintEvent.pos), RGB.fromNumber(paintEvent.rgb));
                     }
                     break;
                 }

@@ -2,48 +2,32 @@ import { config } from './config';
 import { tokens } from './token';
 import { POS, RGB, setIntervalImmediately, tokenToUint8Array, uintToUint8Array } from './utils';
 import { socket } from './socket';
+import { prisma } from './db';
 
-export class PaintEvent {
-    uid?: number;
-    status?: number;
-
-    constructor(public readonly pos: POS, public readonly color: RGB) { }
-
-    toOutputString = (withUid: boolean = false): string => {
-        var message = '';
-        if (withUid) {
-            message += (this.uid?.toString().padEnd(7) || ' '.repeat(7)) + ' ';
-        }
-        message += `${this.pos.toOutputString()} -> ${this.color.toOutputString()}`;
-        return message;
-    }
-};
-
-export type PaintEvents = {
-    pending: PaintEvent[];
-    painting: Map<number, PaintEvent>;
-    done: PaintEvent[];
-};
+export enum PaintEventStatus {
+    PENDING,
+    PAINTING,
+    DONE,
+}
 
 export class Painter {
-    public readonly paintEvents: PaintEvents = {
-        pending: [],
-        painting: new Map(),
-        done: [],
-    }
-
-    paint = (pos: POS, color: RGB): void => {
-        this.paintEvents.pending.push(new PaintEvent(pos, color));
+    paint = async (pos: POS, rgb: RGB): Promise<void> => {
+        await prisma.paintEvent.create({
+            data: {
+                pos: pos.toNumber(), rgb: rgb.toNumber(),
+                status: PaintEventStatus.PENDING, random: Math.random(),
+            },
+        });
     }
 
     startPainting = async (): Promise<void> => {
         await socket.socketOpen;
-        const ID_MAX = Math.pow(2, 32);
         while (true) {
             await new Promise<void>((resolve) => {
                 var intervalId: NodeJS.Timeout;
-                intervalId = setIntervalImmediately(() => {
-                    if (this.paintEvents.pending.length > 0) { clearInterval(intervalId); resolve(); }
+                intervalId = setIntervalImmediately(async () => {
+                    const paintEvent = await prisma.paintEvent.findFirst({ where: { status: PaintEventStatus.PENDING } });
+                    if (paintEvent) { clearInterval(intervalId); resolve(); }
                 }, 100);
             });
             const { uid, token } = await new Promise<{ uid: number, token: string }>((resolve) => {
@@ -53,22 +37,23 @@ export class Painter {
                     if (token) { clearInterval(intervalId); resolve(token); }
                 }, 100);
             });
-            const paintEvent: PaintEvent = this.paintEvents.pending.splice(config.painter.random ? Math.floor(Math.random() * this.paintEvents.pending.length) : 0, 1)[0]!;
-            const { color, pos } = paintEvent;
-            var id = Math.floor(Math.random() * ID_MAX);
-            while (this.paintEvents.painting.has(id)) {
-                id = Math.floor(Math.random() * ID_MAX);
-            }
-            paintEvent.uid = uid;
-            this.paintEvents.painting.set(id, paintEvent);
+            const paintEvent = (
+                config.painter.random ?
+                    await prisma.paintEvent.findFirst({ where: { status: PaintEventStatus.PENDING }, orderBy: { random: 'asc' } })
+                    : await prisma.paintEvent.findFirst({ where: { status: PaintEventStatus.PENDING } })
+            )!;
+            await prisma.paintEvent.update({
+                where: { id: paintEvent.id },
+                data: { status: PaintEventStatus.PAINTING, uid },
+            });
 
             const paintData = new Uint8Array([
                 0xfe,
-                ...pos.toUint8Array(),
-                ...color.toUint8Array(),
+                ...POS.fromNumber(paintEvent.pos).toUint8Array(),
+                ...RGB.fromNumber(paintEvent.rgb).toUint8Array(),
                 ...uintToUint8Array(uid, 3),
                 ...tokenToUint8Array(token),
-                ...uintToUint8Array(id, 4),
+                ...uintToUint8Array(paintEvent.id, 4),
             ]);
             tokens.updateUseTime(uid, new Date());
             socket.send(paintData.buffer);
