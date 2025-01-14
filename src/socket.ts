@@ -1,11 +1,24 @@
 import WebSocket from 'ws';
 import { config } from './config';
 import { tokens } from './token';
-import { painter, PaintEventStatus } from './painter';
+import { painter } from './painter';
 import { POS, RGB, setIntervalImmediately } from './utils';
 import { images } from './image';
 import { pb } from './pb';
 import { prisma } from './db';
+import { logger } from './logger';
+import { PrismaClient } from '@prisma/client';
+import { closing } from './signal';
+
+const socketLogger = logger.child({ module: 'socket' });
+
+enum SOCKET_TYPE {
+    OPEN,
+    CLOSE,
+    ERROR,
+    HEARTBEAT,
+    UNKNOWN_MESSAGE,
+};
 
 const WebSocketMessageTypes = {
     PIXEL: 0xfa,
@@ -27,39 +40,35 @@ export class Socket {
     public readonly socketOpen: Promise<void>;
     private readonly sendQueue: ArrayBuffer[] = [];
 
-    constructor() {
+    constructor(private readonly prismaSocket: PrismaClient['socket']) {
         this.setupSocket();
         this.socketOpen = new Promise((resolve) => {
-            this.paintboardSocket.onopen = () => {
+            this.paintboardSocket.addEventListener('open', async () => {
+                socketLogger.info('WebSocket opened');
+                await this.prismaSocket.create({ data: { type: SOCKET_TYPE.OPEN, }, });
                 resolve();
-            };
+            });
         });
     }
 
-    setupSocket() {
+    setupSocket = () => {
         this.paintboardSocket = new WebSocket(config.socket.ws);
         this.paintboardSocket.binaryType = 'arraybuffer';
 
-        this.paintboardSocket.addEventListener('message', (event: WebSocket.MessageEvent) => (async () => {
-            await this.handleMessage(event);
-        })());
-        // this.paintboardSocket.addEventListener('error', (err: WebSocket.ErrorEvent) => {
-        //     report.log(`WebSocket error: ${err.message}`); TODO
-        // });
-        this.paintboardSocket.addEventListener('close', async () => {
-            // this.paintboardSocket.addEventListener('close', (reason: WebSocket.CloseEvent) => {
-            // report.log(`WebSocket closed: ${reason.code} ${reason.reason}`); TODO
-            await prisma.paintEvent.updateMany({
-                where: { status: PaintEventStatus.PAINTING },
-                data: { status: PaintEventStatus.PENDING },
-            });
-            setTimeout(() => {
-                this.setupSocket();
-            }, config.socket.retry);
+        this.paintboardSocket.addEventListener('message', async (event: WebSocket.MessageEvent) => { await this.handleMessage(event); });
+        this.paintboardSocket.addEventListener('error', async (err: WebSocket.ErrorEvent) => {
+            socketLogger.error(`WebSocket error: ${err.message}`);
+            await this.prismaSocket.create({ data: { type: SOCKET_TYPE.ERROR, message: `WebSocket error: ${err.message}`, }, });
         });
-    }
+        this.paintboardSocket.addEventListener('close', async (reason: WebSocket.CloseEvent) => {
+            socketLogger.error(`WebSocket closed: ${reason.code} ${reason.reason}`);
+            await this.prismaSocket.create({ data: { type: SOCKET_TYPE.CLOSE, message: `WebSocket closed: ${reason.code} ${reason.reason}`, }, });
+            await painter.moveAllPaintingToPending();
+            setTimeout(() => { this.setupSocket(); }, config.socket.retry);
+        });
+    };
 
-    async handleMessage(event: WebSocket.MessageEvent) {
+    handleMessage = async (event: WebSocket.MessageEvent) => {
         const buffer = event.data as ArrayBuffer;
         const dataView = new DataView(buffer);
 
@@ -83,45 +92,43 @@ export class Socket {
                 }
                 case WebSocketMessageTypes.HEARTBEAT: {
                     this.paintboardSocket.send(new Uint8Array([0xfb]));
-                    // report.heatBeat(); TODO
+                    this.prismaSocket.create({ data: { type: SOCKET_TYPE.HEARTBEAT, }, });
                     break;
                 }
                 case WebSocketMessageTypes.PAINT_RESULT: {
                     const id = dataView.getUint32(offset, true);
-                    const code = dataView.getUint8(offset + 4);
+                    const result = dataView.getUint8(offset + 4);
                     offset += 5;
-                    const paintEvent = await prisma.paintEvent.findUnique({ where: { id }, });
+                    const paintEvent = await painter.getPaintEvent(id);
                     if (!paintEvent) { return; }
-                    prisma.paintEvent.update({ where: { id }, data: { result: code, }, });
-                    switch (code) {
+                    switch (result) {
                         // @ts-expect-error
                         case WebSocketMessageCodes.TOKEN_INVALID:
                             await tokens.fetchToken([paintEvent.uid!]);
                         case WebSocketMessageCodes.COOLING:
-                            tokens.updateUseTime(paintEvent.uid!, new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
+                            await tokens.updateUseTime([paintEvent.uid!], new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
                             break;
                     }
-                    await prisma.paintEvent.update({
-                        where: { id: paintEvent.id },
-                        data: { status: PaintEventStatus.DONE },
-                    });
-                    if (paintEvent.status !== WebSocketMessageCodes.SUCCESS) {
-                        painter.paint(POS.fromNumber(paintEvent.pos), RGB.fromNumber(paintEvent.rgb));
+                    await painter.donePainting(id, result);
+                    if (result !== WebSocketMessageCodes.SUCCESS) {
+                        socketLogger.info(`Repaint event ${id} failed with result ${result}`);
+                        await painter.paint([{ pos: POS.fromNumber(paintEvent.pos), rgb: RGB.fromNumber(paintEvent.rgb) }]);
                     }
                     break;
                 }
                 default:
-                // report.log(`Unknown message type: ${type}`); TODO
+                    await this.prismaSocket.create({ data: { type: SOCKET_TYPE.UNKNOWN_MESSAGE, message: `Unknown message type ${type}`, }, });
             }
         }
-    }
+    };
 
-    send(buffer: ArrayBuffer) {
+    send = (buffer: ArrayBuffer) => {
         this.sendQueue.push(buffer);
-    }
+    };
 
-    startSending() {
-        setIntervalImmediately(() => {
+    startSending = async () => {
+        return await setIntervalImmediately(async (stop) => {
+            if (closing) { stop(); return; }
             if (this.paintboardSocket.readyState === WebSocket.OPEN) {
                 const tempQueue = this.sendQueue.splice(0, this.sendQueue.length);
                 if (tempQueue.length === 0) {
@@ -143,7 +150,12 @@ export class Socket {
                 }
             }
         }, 100);
-    }
-}
+    };
 
-export const socket = new Socket();
+    close = async () => {
+        this.paintboardSocket.close();
+        await this.prismaSocket.create({ data: { type: SOCKET_TYPE.CLOSE, message: 'Manually closed', }, });
+    };
+};
+
+export const socket = new Socket(prisma.socket);

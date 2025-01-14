@@ -2,19 +2,27 @@ import { PrismaClient } from '@prisma/client';
 import { config } from './config';
 import { prisma } from './db';
 import { setIntervalImmediately } from './utils';
+import { logger } from './logger';
+import { closing } from './signal';
+
+const tokenLogger = logger.child({ module: 'token' });
 
 export class Tokens {
     constructor(private readonly prismaToken: PrismaClient['token']) { }
 
-    async fetchBlankTokenInterval() {
-        setIntervalImmediately(async () => {
-            const tokens = await this.prismaToken.findMany({ where: { token: null }, });
-            if (tokens.length > 0) { this.fetchToken(tokens.map(token => token.uid)); }
+    fetchBlankTokenInterval = async () => {
+        return await setIntervalImmediately(async (stop) => {
+            if (closing) { stop(); return; }
+            const tokens = await this.prismaToken.findMany({ where: { token: null, }, });
+            if (tokens.length > 0) {
+                await this.fetchToken(tokens.map(token => token.uid));
+            }
         }, config.token.interval);
-    }
+    };
 
-    async fetchToken(uidList: number[]) {
+    fetchToken = async (uidList: number[]) => {
         for (const uid of uidList) {
+            tokenLogger.info(`Fetching token for uid: ${uid}`);
             const token = await this.prismaToken.findUnique({ where: { uid, }, });
             if (!token) { continue; }
             await this.prismaToken.update({ where: { uid, }, data: { token: null, message: 'Getting token', }, });
@@ -30,28 +38,37 @@ export class Tokens {
                 else { await this.prismaToken.update({ where: { uid, }, data: { token: data.data.token, message: null, }, }); }
             } catch (err) {
                 await this.prismaToken.update({ where: { uid, }, data: { message: `Request token failed: ${err}`, }, });
+                tokenLogger.error('Fetch token failed:', err);
             }
         }
-    }
+    };
 
-    async getToken(uid: number) { return await this.prismaToken.findUnique({ where: { uid, }, }); }
-    async getTokens() { return await this.prismaToken.findMany(); }
+    getToken = async (uid: number) => { return await this.prismaToken.findUnique({ where: { uid, }, }); };
+    getTokens = async () => { return await this.prismaToken.findMany(); };
 
-    async isCooledDown(uid: number) {
+    isCooledDown = async (uid: number) => {
         const token = await this.getToken(uid);
         if (!token) { return false; }
         if (token.lastUsed == null) { return true; }
         return new Date().getTime() - token.lastUsed.getTime() > config.token.cd;
-    }
+    };
 
-    async getAvailableToken() {
-        const token = await this.prismaToken.findFirst({ where: { token: { not: null }, lastUsed: { lt: new Date(new Date().getTime() - config.token.cd) }, }, });
-        if (!token) { return null; }
-        return { uid: token.uid, token: token.token! };
-    }
+    getAvailableTokens = async () => {
+        return await this.prismaToken.findMany({
+            where: {
+                token: { not: null },
+                lastUsed: { lt: new Date(new Date().getTime() - config.token.cd) },
+            },
+            orderBy: { lastUsed: 'asc', }
+        });
+    };
 
-    async updateUseTime(uid: number, lastUsed: Date) { await this.prismaToken.update({ where: { uid, }, data: { lastUsed, }, }); }
-}
+    updateUseTime = async (uid: number[], lastUsed: Date) => {
+        await this.prismaToken.updateMany({
+            where: { uid: { in: uid }, },
+            data: { lastUsed, },
+        });
+    };
+};
 
 export const tokens = new Tokens(prisma.token);
-tokens.fetchBlankTokenInterval();

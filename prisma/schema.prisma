@@ -8,21 +8,9 @@ datasource db {
 }
 
 model token {
-  uid        Int          @id @unique
-  token      String?
-  paste      String
-  lastUsed   DateTime     @default(now())
-  message    String?
-  paintEvent paintEvent[]
-}
-
-model paintEvent {
-  id     Int    @id @default(autoincrement())
-  pos    Int
-  rgb    Int
-  uid    Int?
-  token  token? @relation(fields: [uid], references: [uid])
-  status Int
-  result Int?
-  random Float
+  uid      Int      @id @unique
+  token    String?
+  paste    String
+  lastUsed DateTime @default(now())
+  message  String?
 }

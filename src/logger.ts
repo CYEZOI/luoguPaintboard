@@ -1,3 +1,7 @@
-import pino from "pino";
+import pino from 'pino';
+import pretty from 'pino-pretty';
 
-export const logger: pino.Logger = pino();
+export const logger: pino.Logger = pino(pretty({
+    colorize: true,
+    minimumLevel: 'debug',
+}));
