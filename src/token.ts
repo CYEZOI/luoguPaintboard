@@ -38,7 +38,7 @@ export class Tokens {
                 else { await this.prismaToken.update({ where: { uid, }, data: { token: data.data.token, message: null, }, }); }
             } catch (err) {
                 await this.prismaToken.update({ where: { uid, }, data: { message: `Request token failed: ${err}`, }, });
-                tokenLogger.error('Fetch token failed:', err);
+                tokenLogger.error(`Fetch token failed: ${err}`);
             }
         }
     };
