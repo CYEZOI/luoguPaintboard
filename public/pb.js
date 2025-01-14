@@ -8,6 +8,8 @@ export class PB {
     constructor() {
         paintboard.width = config.pb.width;
         paintboard.height = config.pb.height;
+
+        setInterval(() => { this.refreshPaintboard(); }, config.pb.refresh);
     }
 
     setBoardData = (pos, color) => {
@@ -28,15 +30,15 @@ export class PB {
             if (res.status !== 200) { throw 'Paintboard data fetch failed.'; }
             const byteArray = new Uint8Array(await res.arrayBuffer());
             if (byteArray.length !== config.pb.width * config.pb.height * 3) { throw 'Paintboard data length mismatch.'; }
-            for (let y = 0; y < config.pb.height; y++) {
-                for (let x = 0; x < config.pb.width; x++) {
-                    this.setBoardData({ x, y }, {
-                        r: byteArray[y * config.pb.width * 3 + x * 3],
-                        g: byteArray[y * config.pb.width * 3 + x * 3 + 1],
-                        b: byteArray[y * config.pb.width * 3 + x * 3 + 2]
-                    });
-                }
+            const ctx = paintboard.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, config.pb.width, config.pb.height);
+            for (let i = 0; i < byteArray.length / 3; i++) {
+                imageData.data[i * 4] = byteArray[i * 3];
+                imageData.data[i * 4 + 1] = byteArray[i * 3 + 1];
+                imageData.data[i * 4 + 2] = byteArray[i * 3 + 2];
+                imageData.data[i * 4 + 3] = 255;
             }
+            ctx.putImageData(imageData, 0, 0);
         }
         catch (err) {
             console.error(`Failed to refresh paintboard: ${err}`);
@@ -51,62 +53,6 @@ export class PB {
     setupSocket = () => {
         const paintboardSocket = new WebSocket(config.socket.ws);
         paintboardSocket.onmessage = async (e) => {
-            /*    handleMessage = async (event: WebSocket.MessageEvent) => {
-        const buffer = event.data as ArrayBuffer;
-        const dataView = new DataView(buffer);
-
-        let offset = 0;
-        while (offset < buffer.byteLength) {
-            const type = dataView.getUint8(offset);
-            offset += 1;
-            switch (type) {
-                case WebSocketMessageTypes.PIXEL: {
-                    const x = dataView.getUint16(offset, true);
-                    const y = dataView.getUint16(offset + 2, true);
-                    const pos = new POS(x, y);
-                    const colorR = dataView.getUint8(offset + 4);
-                    const colorG = dataView.getUint8(offset + 5);
-                    const colorB = dataView.getUint8(offset + 6);
-                    const color = new RGB(colorR, colorG, colorB);
-                    offset += 7;
-                    await pb.update(pos, color);
-                    images.checkColor(pos, color);
-                    break;
-                }
-                case WebSocketMessageTypes.HEARTBEAT: {
-                    this.paintboardSocket.send(new Uint8Array([0xfb]));
-                    socketLogger.debug('Heartbeat');
-                    break;
-                }
-                case WebSocketMessageTypes.PAINT_RESULT: {
-                    const id = dataView.getUint32(offset, true);
-                    const result = dataView.getUint8(offset + 4);
-                    offset += 5;
-                    const paintEvent = await painter.getPaintEvent(id);
-                    if (!paintEvent) {
-                        socketLogger.warn(`Unknown paint event: ${id}`);
-                        break;
-                    }
-                    switch (result) {
-                        // @ts-expect-error
-                        case WebSocketMessageCodes.TOKEN_INVALID:
-                            await tokens.fetchToken([paintEvent.uid!]);
-                        case WebSocketMessageCodes.COOLING:
-                            await tokens.updateUseTime([paintEvent.uid!], new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
-                            break;
-                    }
-                    await painter.donePainting(id, result);
-                    if (result !== WebSocketMessageCodes.SUCCESS) {
-                        socketLogger.info(`Paint event ${id} failed with result ${result}`);
-                        await painter.paint([{ pos: paintEvent.pos, rgb: paintEvent.rgb }]);
-                    }
-                    break;
-                }
-                default:
-                    socketLogger.warn(`Unknown message type: ${type}`);
-            }
-        }
-    };*/
             const dataview = new DataView(await e.data.arrayBuffer());
             let offset = 0;
             while (offset < dataview.byteLength) {

@@ -6,8 +6,33 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+    <link href="https://s4.zstatic.net/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://s4.zstatic.net/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        #historyContainer {
+            position: relative;
+        }
+
+        #historyContainer>* {
+            transition: all 0.5s;
+        }
+
+        #historyContainer>div {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #historyContainer.loading img {
+            filter: blur(5px) grayscale(100%);
+        }
+
+        #historyContainer.loading>div {
+            display: unset;
+        }
+    </style>
 </head>
 
 <body class="placeholder-glow">
@@ -34,11 +59,46 @@
                 </div>
                 <div class="card mb-3">
                     <div class="card-header">历史回顾</div>
-                    <input type="range" class="form-range" id="historyRange" disabled step="1">
-                    <div class="card-body"><canvas id="historyPaintboard" class="w-100"></canvas></div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <a href="#" id="oldestLabel"></a><a href="#" id="newestLabel"></a>
+                        </div>
+                        <input type="range" class="form-range" id="historyRange" disabled step="1">
+                        <div class="d-flex justify-content-center">
+                            <a id="currentLabel"></a>
+                        </div>
+                        <div id="historyContainer" class="loading">
+                            <img class="w-100 h-100">
+                            <div class="w-100 h-100">
+                                <div class="d-flex justify-content-center align-items-center w-100 h-100">
+                                    <div class="spinner-border" role="status"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="col-12 col-lg-6">
+                <div class="card mb-3">
+                    <div class="card-header">令牌管理</div>
+                    <div class="card-body">
+                        <div class="input-group mb-3">
+                            <input type="number" class="form-control" id="tokenUidInput" placeholder="用户 ID" min="1">
+                            <input class="form-control" id="tokenPasteIdInput" placeholder="粘贴板 ID" maxlength="6">
+                            <button class="btn btn-outline-primary" id="tokenButton">添加</button>
+                        </div>
+
+                        <textarea class="form-control mb-1" id="tokenBulkInput" rows="5" placeholder="批量添加"></textarea>
+                        <div class="d-flex flex-row-reverse mb-3">
+                            <div>
+                                <span id="tokenBulkInfo" class="text-muted align-middle me-2"></span>
+                                <button class="btn btn-outline-primary text-end" id="tokenBulkButton">批量添加</button>
+                            </div>
+                        </div>
+
+                        <div class="list-group" id="tokenList"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
