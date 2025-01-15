@@ -7,15 +7,21 @@ import { createGzip } from 'zlib';
 import { prisma } from './db';
 import expressWs from 'express-ws';
 import { tokens } from './token';
+import si from 'systeminformation';
+import { setIntervalImmediately } from './utils';
 
 const serverLogger = logger.child({ module: 'server' });
 
 export const createServer = () => {
     const app = expressWs(express()).app;
-    const port = 5000;
+    const port = 3000;
 
     app.use(express.static('public'));
     app.use(express.json());
+
+    app.get('/config', async (_: Request, res: Response) => {
+        res.json(config);
+    });
 
     app.get('/token', async (_: Request, res: Response) => {
         res.json(await prisma.token.findMany());
@@ -57,6 +63,18 @@ export const createServer = () => {
         res.setHeader('Content-Type', 'image/png');
         res.setHeader('Content-Encoding', 'gzip');
         image.png().pipe(createGzip()).pipe(res);
+    });
+
+    app.ws('/monitor/ws', async (ws, _) => {
+        setIntervalImmediately(async () => {
+            ws.send(JSON.stringify({
+                currentLoad: await si.currentLoad(),
+                mem: await si.mem(),
+                disksIO: await si.disksIO(),
+                networkStats: await si.networkStats(),
+                osInfo: await si.osInfo(),
+            }));
+        }, 1000);
     });
 
     app.listen(port, () => { serverLogger.info(`Server started at http://localhost:${port}`); });

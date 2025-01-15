@@ -205,5 +205,3 @@ export class TOKENS {
             });
     }
 }
-
-export const tokens = new TOKENS();

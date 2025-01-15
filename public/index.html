@@ -8,6 +8,7 @@
 
     <link href="https://s4.zstatic.net/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://s4.zstatic.net/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+    <script src="https://s4.zstatic.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <style>
         #historyContainer {
@@ -54,21 +55,23 @@
             <div class="col-12 col-lg-6">
                 <div class="card mb-3">
                     <div class="card-header">实时预览</div>
-                    <div class="card-body"><canvas id="paintboard" class="w-100"></canvas></div>
+                    <div class="card-body">
+                        <canvas id="paintboard" role="button" class="w-100"></canvas>
+                    </div>
                 </div>
                 <div class="card mb-3">
                     <div class="card-header">历史回顾</div>
                     <div class="card-body">
-                        <div class="d-flex justify-content-between">
-                            <a href="#" id="oldestLabel" data-bs-toggle="tooltip"></a>
-                            <a href="#" id="newestLabel" data-bs-toggle="tooltip"></a>
+                        <div class="d-flex justify-content-between" style="margin-bottom: -0.5em">
+                            <a id="oldestLabel" role="button"></a>
+                            <a id="newestLabel" role="button"></a>
                         </div>
                         <input type="range" class="form-range" id="historyRange" disabled step="1">
-                        <div class="d-flex justify-content-center">
-                            <a href="#" id="currentLabel" data-bs-toggle="tooltip"></a>
+                        <div class="d-flex justify-content-center mb-2" style="margin-top: -0.5em">
+                            <a id="currentLabel"></a>
                         </div>
                         <div id="historyContainer" class="loading">
-                            <img class="w-100 h-100">
+                            <img role="button" class="w-100 h-100">
                             <div class="w-100 h-100" hidden>
                                 <div class="d-flex justify-content-center align-items-center w-100 h-100">
                                     <div class="spinner-border" role="status"></div>
@@ -113,6 +116,10 @@
                             </div>
                         </div>
                     </div>
+                </div>
+                <div class="card mb-3">
+                    <div class="card-header">系统信息</div>
+                    <pre id="systemInfo" class="card-body w-100"></pre>
                 </div>
             </div>
         </div>

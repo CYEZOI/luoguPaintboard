@@ -70,5 +70,3 @@ export class PBHistory {
         this.historyPaintboard.addEventListener('click', () => { open(this.historyPaintboard.src); });
     };
 };
-
-export const pbHistory = new PBHistory();

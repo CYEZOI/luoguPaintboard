@@ -25,9 +25,10 @@ export class PB {
         const now = Date.now();
         const id = Math.floor(now / 1000 / 60);
         const delta = now - id * 1000 * 60;
+	const posNumber = pos.toNumber();
         await appendFile(`pb/${id}.pe`, Buffer.from([
             delta >> 8, delta,
-            pos.x, pos.y,
+            posNumber >> 16, posNumber >> 8, posNumber,
             color.r, color.g, color.b]));
         if (this.refreshing) { this.pendingQueue.push([pos, color]); }
         else { this.setBoardData(pos, color); }
@@ -95,16 +96,17 @@ export class PB {
             for (var id = historyId; id <= currentId; id++) {
                 if (!files.pe.includes(id)) { continue; }
                 const file = await readFile(`pb/${id}.pe`);
-                if (file.length % 7 !== 0) {
-                    pbLogger.error(`Paint event data length is not a multiple of 7: pb/${id}.pe`);
+                if (file.length % 8 !== 0) {
+                    pbLogger.error(`Paint event data length is not a multiple of 8: pb/${id}.pe`);
                     return null;
                 }
-                for (let j = 0; j < file.length; j += 7) {
+                for (let j = 0; j < file.length; j += 8) {
                     const base = id * 1000 * 60;
                     const delta = file[j]! << 8 | file[j + 1]!;
                     const currentTime = new Date(base + delta);
                     if (currentTime.getTime() > time.getTime()) { break; }
-                    byteArray.set([...file.subarray(j + 4, j + 7)], (file[j + 3]! * config.pb.width + file[j + 2]!) * 3);
+		    const pos = POS.fromNumber(file[j + 2]! << 16 | file[j + 3]! << 8 | file[j + 4]!);
+                    byteArray.set([...file.subarray(j + 5, j + 8)], (pos.y * config.pb.width + pos.x) * 3);
                 }
             }
             return byteArray;

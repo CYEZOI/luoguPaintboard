@@ -47,7 +47,7 @@ export class Tokens {
                     headers: { 'Content-Type': 'application/json', },
                     body: JSON.stringify({ uid, paste: token.paste, }),
                 });
-                if (res.status !== 200) { throw 'Request token failed'; }
+                if (res.status !== 200) { throw `Status code: ${res.status}`; }
                 const data = await res.json();
                 if (data.data.errorType) {
                     await this.prismaToken.update({ where: { uid, }, data: { message: `${data.data.errorType} ${data.data.message}`, }, });

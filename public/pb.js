@@ -1,4 +1,5 @@
 import { config } from './config.js';
+import { setIntervalImmediately } from './utils.js';
 
 export class PB {
     refreshing = false;
@@ -10,7 +11,7 @@ export class PB {
         paintboard.height = config.pb.height;
 
         this.setupSocket();
-        setInterval(() => { this.refreshPaintboard(); }, config.pb.refresh);
+        setIntervalImmediately(async () => { this.refreshPaintboard(); }, config.pb.refresh);
     }
 
     setBoardData = (pos, color) => {
@@ -88,6 +89,8 @@ export class PB {
             setTimeout(() => { this.setupSocket(); }, 1000);
         });
     }
-};
 
-export const pb = new PB();
+    registerEvent = () => {
+        this.paintboard.addEventListener('click', () => { paintboard.requestFullscreen(); });
+    }
+};

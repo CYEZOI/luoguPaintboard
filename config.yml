@@ -38,12 +38,12 @@ painter:
   retry: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久
 
 socket:
-  # http: "http://pbdm1.uwuwu.us.kg:22767"
-  http: "https://pb.cyezoi.com"
+  http: "http://pbdm1.uwuwu.us.kg:22767"
+  # http: "https://pb.cyezoi.com"
   # http: "https://api.paintboard.ayakacraft.com:32767"
 
-  # ws: "ws://pbdm1.uwuwu.us.kg:22767/api/paintboard/ws"
-  ws: "wss://pb.cyezoi.com/api/paintboard/ws"
+  ws: "ws://pbdm1.uwuwu.us.kg:22767/api/paintboard/ws"
+  # ws: "wss://pb.cyezoi.com/api/paintboard/ws"
   # ws: "wss://api.paintboard.ayakacraft.com:32767/api/paintboard/ws"
   
   batch: true # 是否启用粘包
