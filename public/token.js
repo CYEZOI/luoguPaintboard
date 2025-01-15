@@ -198,6 +198,10 @@ export class TOKENS {
                         }
                     }
                 });
+
+                tokenSocket.addEventListener('close', () => {
+                    setTimeout(() => { this.setupSocket(); }, 1000);
+                });
             });
     }
 }

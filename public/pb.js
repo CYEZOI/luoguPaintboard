@@ -9,6 +9,7 @@ export class PB {
         paintboard.width = config.pb.width;
         paintboard.height = config.pb.height;
 
+        this.setupSocket();
         setInterval(() => { this.refreshPaintboard(); }, config.pb.refresh);
     }
 
@@ -82,10 +83,10 @@ export class PB {
                 }
             }
         };
-        paintboardSocket.onclose = () => {
+        paintboardSocket.addEventListener('close', () => {
             console.error('Paintboard socket closed.');
             setTimeout(() => { this.setupSocket(); }, 1000);
-        };
+        });
     }
 };
 
