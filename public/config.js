@@ -1,4 +1,7 @@
 export const config = {
+    token: {
+        cd: 100,
+    },
     socket: {
         // http: 'http://pbdm1.uwuwu.us.kg:22767',
         http: 'https://pb.cyezoi.com',

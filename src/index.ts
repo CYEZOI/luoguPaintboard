@@ -17,7 +17,7 @@ tokens.fetchBlankTokenInterval();
 await pb.refreshPaintboard();
 for (let i = 0; i < 1; i++) {
     for (let j = 0; j < 1; j++) {
-        images.addImage('image.jpg', new POS(100 * i, 100 * j));
+        images.addImage('image.jpg', new POS(200 * i, 200 * j));
     }
 }
 waitBeforeClose(socket.startSending());

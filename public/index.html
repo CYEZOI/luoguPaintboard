@@ -19,7 +19,6 @@
         }
 
         #historyContainer>div {
-            display: none;
             position: absolute;
             top: 0;
             left: 0;
@@ -30,7 +29,7 @@
         }
 
         #historyContainer.loading>div {
-            display: unset;
+            display: unset !important;
         }
     </style>
 </head>
@@ -61,15 +60,16 @@
                     <div class="card-header">历史回顾</div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
-                            <a href="#" id="oldestLabel"></a><a href="#" id="newestLabel"></a>
+                            <a href="#" id="oldestLabel" data-bs-toggle="tooltip"></a>
+                            <a href="#" id="newestLabel" data-bs-toggle="tooltip"></a>
                         </div>
                         <input type="range" class="form-range" id="historyRange" disabled step="1">
                         <div class="d-flex justify-content-center">
-                            <a id="currentLabel"></a>
+                            <a href="#" id="currentLabel" data-bs-toggle="tooltip"></a>
                         </div>
                         <div id="historyContainer" class="loading">
                             <img class="w-100 h-100">
-                            <div class="w-100 h-100">
+                            <div class="w-100 h-100" hidden>
                                 <div class="d-flex justify-content-center align-items-center w-100 h-100">
                                     <div class="spinner-border" role="status"></div>
                                 </div>
@@ -84,7 +84,7 @@
                     <div class="card-body">
                         <div class="input-group mb-3">
                             <input type="number" class="form-control" id="tokenUidInput" placeholder="用户 ID" min="1">
-                            <input class="form-control" id="tokenPasteIdInput" placeholder="粘贴板 ID" maxlength="6">
+                            <input class="form-control" id="tokenPasteIdInput" placeholder="粘贴板 ID" maxlength="8">
                             <button class="btn btn-outline-primary" id="tokenButton">添加</button>
                         </div>
 
@@ -96,7 +96,22 @@
                             </div>
                         </div>
 
-                        <div class="list-group" id="tokenList"></div>
+                        <div class="accordion" id="tokenListAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#tokenListContainer">
+                                        令牌列表
+                                    </button>
+                                </h2>
+                                <div id="tokenListContainer" class="accordion-collapse collapse"
+                                    data-bs-parent="#tokenListAccordion">
+                                    <div class="accordion-body">
+                                        <div class="list-group" id="tokenList"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

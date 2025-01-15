@@ -6,6 +6,7 @@ import { config } from './config';
 import { createGzip } from 'zlib';
 import { prisma } from './db';
 import expressWs from 'express-ws';
+import { tokens } from './token';
 
 const serverLogger = logger.child({ module: 'server' });
 
@@ -16,6 +17,9 @@ export const createServer = () => {
     app.use(express.static('public'));
     app.use(express.json());
 
+    app.get('/token', async (_: Request, res: Response) => {
+        res.json(await prisma.token.findMany());
+    });
     app.post('/token', async (req: Request, res: Response) => {
         if (!Array.isArray(req.body) ||
             req.body.some((item: any) => typeof item.uid !== 'number' || typeof item.paste !== 'string' || Object.keys(item).length !== 2)) {
@@ -23,13 +27,20 @@ export const createServer = () => {
             return;
         }
         await prisma.token.createMany({ data: req.body });
-        res.send('Token request received');
+        res.json({});
     });
-    app.ws('/token/ws', (ws, _) => {
-        setInterval(async () => {
-            const tokens = await prisma.token.findMany();
-            ws.send(JSON.stringify(tokens));
-        }, 1000);
+    app.patch('/token/:uid', async (req: Request, res: Response) => {
+        (req.body.enabled ? tokens.enableToken : tokens.disableToken)(parseInt(req.params['uid']!));
+        res.send('Token updated');
+    });
+    app.delete('/token/:uid', async (req: Request, res: Response) => {
+        await prisma.token.deleteMany({ where: { uid: parseInt(req.params['uid']!) } });
+        res.send('Token deleted');
+    });
+    app.ws('/token/ws', async (ws, _) => {
+        const listener = (data: any) => ws.send(JSON.stringify(data));
+        tokens.on(listener);
+        ws.on('close', () => tokens.off(listener));
     });
 
     app.get('/history', async (_: Request, res: Response) => {

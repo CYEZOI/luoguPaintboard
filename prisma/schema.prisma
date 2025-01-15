@@ -13,4 +13,5 @@ model token {
   paste    String
   lastUsed DateTime @default(now())
   message  String?
+  enabled  Boolean  @default(true)
 }
