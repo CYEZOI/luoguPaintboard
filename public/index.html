@@ -11,25 +11,25 @@
     <script src="https://s4.zstatic.net/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
     <style>
-        #historyContainer {
+        .blurContainer {
             position: relative;
         }
 
-        #historyContainer>* {
+        .blurContainer>* {
             transition: all 0.5s;
         }
 
-        #historyContainer>div {
+	.blurContainer>:last-child {
             position: absolute;
             top: 0;
             left: 0;
         }
 
-        #historyContainer.loading img {
+        .blurContainer.loading>:first-child {
             filter: blur(5px) grayscale(100%);
         }
 
-        #historyContainer.loading>div {
+        .blurContainer.loading>:last-child {
             display: unset !important;
         }
     </style>
@@ -56,7 +56,15 @@
                 <div class="card mb-3">
                     <div class="card-header">实时预览</div>
                     <div class="card-body">
-                        <canvas id="paintboard" role="button" class="w-100"></canvas>
+                        <div></div>
+                        <div id="paintboardContainer" class="blurContainer loading">
+                            <canvas role="button" class="w-100 h-100"></canvas>
+                            <div class="w-100 h-100" hidden>
+                                <div class="d-flex justify-content-center align-items-center w-100 h-100">
+                                    <div class="spinner-border" role="status"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="card mb-3">
@@ -70,7 +78,7 @@
                         <div class="d-flex justify-content-center mb-2" style="margin-top: -0.5em">
                             <a id="currentLabel"></a>
                         </div>
-                        <div id="historyContainer" class="loading">
+                        <div id="historyContainer" class="blurContainer" class="loading">
                             <img role="button" class="w-100 h-100">
                             <div class="w-100 h-100" hidden>
                                 <div class="d-flex justify-content-center align-items-center w-100 h-100">

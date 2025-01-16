@@ -2,20 +2,21 @@ import { config } from './config.js';
 import { setIntervalImmediately } from './utils.js';
 
 export class PB {
+    paintboardContainer = document.getElementById('paintboardContainer');
+    paintboard = this.paintboardContainer.firstElementChild;
     refreshing = false;
     pendingQueue = [];
-    paintboard = document.getElementById('paintboard');
 
     constructor() {
-        paintboard.width = config.pb.width;
-        paintboard.height = config.pb.height;
+        this.paintboard.width = config.pb.width;
+        this.paintboard.height = config.pb.height;
 
         this.setupSocket();
         setIntervalImmediately(async () => { this.refreshPaintboard(); }, config.pb.refresh);
     }
 
     setBoardData = (pos, color) => {
-        const ctx = paintboard.getContext('2d');
+        const ctx = this.paintboard.getContext('2d');
         ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
         ctx.fillRect(pos.x, pos.y, 1, 1);
     }
@@ -32,7 +33,7 @@ export class PB {
             if (res.status !== 200) { throw 'Paintboard data fetch failed.'; }
             const byteArray = new Uint8Array(await res.arrayBuffer());
             if (byteArray.length !== config.pb.width * config.pb.height * 3) { throw 'Paintboard data length mismatch.'; }
-            const ctx = paintboard.getContext('2d');
+            const ctx = this.paintboard.getContext('2d');
             const imageData = ctx.getImageData(0, 0, config.pb.width, config.pb.height);
             for (let i = 0; i < byteArray.length / 3; i++) {
                 imageData.data[i * 4] = byteArray[i * 3];
@@ -50,6 +51,7 @@ export class PB {
             this.setBoardData(pos, color);
         }
         this.refreshing = false;
+        paintboardContainer.classList.remove('loading');
     }
 
     setupSocket = () => {
@@ -83,14 +85,16 @@ export class PB {
                     }
                 }
             }
+            paintboardContainer.classList.remove('loading');
         };
         paintboardSocket.addEventListener('close', () => {
+            paintboardContainer.classList.remove('loading');
             console.error('Paintboard socket closed.');
             setTimeout(() => { this.setupSocket(); }, 1000);
         });
     }
 
     registerEvent = () => {
-        this.paintboard.addEventListener('click', () => { paintboard.requestFullscreen(); });
+        this.paintboard.addEventListener('click', () => { this.paintboard.requestFullscreen(); });
     }
 };

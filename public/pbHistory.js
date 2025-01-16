@@ -2,7 +2,7 @@ import { config } from './config.js';
 
 export class PBHistory {
     historyContainer = document.getElementById('historyContainer');
-    historyPaintboard = this.historyContainer.querySelector('img');
+    historyPaintboard = this.historyContainer.firstElementChild;
     historyRange = document.getElementById('historyRange');
     oldestLabel = document.getElementById('oldestLabel');
     currentLabel = document.getElementById('currentLabel');
