@@ -25,7 +25,7 @@ export class PB {
         const now = Date.now();
         const id = Math.floor(now / 1000 / 60);
         const delta = now - id * 1000 * 60;
-	const posNumber = pos.toNumber();
+        const posNumber = pos.toNumber();
         await appendFile(`pb/${id}.pe`, Buffer.from([
             delta >> 8, delta,
             posNumber >> 16, posNumber >> 8, posNumber,
@@ -105,7 +105,7 @@ export class PB {
                     const delta = file[j]! << 8 | file[j + 1]!;
                     const currentTime = new Date(base + delta);
                     if (currentTime.getTime() > time.getTime()) { break; }
-		    const pos = POS.fromNumber(file[j + 2]! << 16 | file[j + 3]! << 8 | file[j + 4]!);
+                    const pos = POS.fromNumber(file[j + 2]! << 16 | file[j + 3]! << 8 | file[j + 4]!);
                     byteArray.set([...file.subarray(j + 5, j + 8)], (pos.y * config.pb.width + pos.x) * 3);
                 }
             }
