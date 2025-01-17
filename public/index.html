@@ -36,9 +36,11 @@
 </head>
 
 <body class="placeholder-glow">
-    <div id="bodyLoading"
-        class="bg-body position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center z-3">
-        <div class="spinner-border text-primary" role="status"></div>
+    <div id="bodyLoading">
+        <div
+            class="bg-body position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center z-3">
+            <div class="spinner-border text-primary" role="status"></div>
+        </div>
     </div>
     <header>
         <nav class="navbar navbar-expand-sm bg-body-tertiary">
@@ -79,10 +81,17 @@
                             <a id="newestLabel" role="button"></a>
                         </div>
                         <input type="range" class="form-range" id="historyRange" disabled step="1">
-                        <div class="d-flex justify-content-center mb-2" style="margin-top: -0.5em">
-                            <a id="currentLabel"></a>
+                        <div class="d-flex justify-content-between" style="margin-top: -0.5em">
+                            <button class="btn btn-outline-primary" id="historyPrevButton">&laquo;</button>
+                            <div>
+                                <a id="currentLabel"></a>
+                                <span>
+                                    <input type="datetime-local" class="form-control" id="currentLabelEditor" hidden>
+                                </span>
+                            </div>
+                            <button class="btn btn-outline-primary" id="historyNextButton">&raquo;</button>
                         </div>
-                        <div id="historyContainer" class="blurContainer" class="loading">
+                        <div id="historyContainer" class="blurContainer mt-2" class="loading">
                             <img role="button" class="w-100 h-100">
                             <div class="w-100 h-100" hidden>
                                 <div class="d-flex justify-content-center align-items-center w-100 h-100">

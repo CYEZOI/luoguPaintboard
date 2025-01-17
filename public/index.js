@@ -7,7 +7,7 @@ import { fetchConfig } from './config.js';
 const bodyLoading = document.getElementById('bodyLoading');
 
 fetchConfig().then(() => {
-    bodyLoading.classList.add('d-none');
+    bodyLoading.hidden = true;
     const pb = new PB(); pb.registerEvent();
     const pbHistory = new PBHistory(); pbHistory.registerEvent();
     const tokens = new TOKENS(); tokens.registerEvent();

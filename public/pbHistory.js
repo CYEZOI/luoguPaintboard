@@ -1,4 +1,5 @@
 import { config } from './config.js';
+import { toLocaleISOString } from './utils.js';
 
 export class PBHistory {
     historyContainer = document.getElementById('historyContainer');
@@ -7,6 +8,9 @@ export class PBHistory {
     oldestLabel = document.getElementById('oldestLabel');
     currentLabel = document.getElementById('currentLabel');
     newestLabel = document.getElementById('newestLabel');
+    currentLabelEditor = document.getElementById('currentLabelEditor');
+    historyPrevButton = document.getElementById('historyPrevButton');
+    historyNextButton = document.getElementById('historyNextButton');
 
     constructor() {
         this.historyPaintboard.width = config.pb.width;
@@ -24,15 +28,19 @@ export class PBHistory {
                 }
                 this.historyRange.min = Math.ceil(data.oldest / 1000);
                 this.historyRange.max = Math.floor(Date.now() / 1000);
-                this.historyRange.value = this.historyRange.max;
                 this.historyRange.removeAttribute('disabled');
                 this.historyRange.oninput();
-                this.historyRange.onchange();
+                this.changeHistoryRangeValue(this.historyRange.max);
                 setInterval(() => {
                     this.historyRange.max = Math.floor(Date.now() / 1000);
                     this.historyRange.oninput();
                 }, 1000);
             });
+    }
+
+    changeHistoryRangeValue = (time) => {
+        this.historyRange.value = time;
+        this.historyRange.onchange();
     }
 
     registerEvent = () => {
@@ -41,6 +49,8 @@ export class PBHistory {
             this.oldestLabel.innerText = new Date(this.historyRange.min * 1000).toLocaleString();
             this.currentLabel.innerText = new Date(time * 1000).toLocaleString();
             this.newestLabel.innerText = new Date(this.historyRange.max * 1000).toLocaleString();
+            this.currentLabelEditor.min = toLocaleISOString(new Date(this.historyRange.min * 1000));
+            this.currentLabelEditor.max = toLocaleISOString(new Date(this.historyRange.max * 1000));
         };
         this.historyRange.onchange = () => {
             this.historyRange.disabled = true;
@@ -50,12 +60,28 @@ export class PBHistory {
         };
 
         this.oldestLabel.addEventListener('click', () => {
-            this.historyRange.value = this.historyRange.min;
-            this.historyRange.onchange();
+            this.changeHistoryRangeValue(this.historyRange.min);
         });
         this.newestLabel.addEventListener('click', () => {
-            this.historyRange.value = this.historyRange.max;
-            this.historyRange.onchange();
+            this.changeHistoryRangeValue(this.historyRange.max);
+        });
+        this.currentLabel.addEventListener('click', () => {
+            this.currentLabel.hidden = true;
+            this.currentLabelEditor.hidden = false;
+            this.currentLabelEditor.focus();
+            this.currentLabelEditor.value = toLocaleISOString(new Date(this.historyRange.value * 1000));
+        });
+        this.currentLabelEditor.addEventListener('blur', () => {
+            this.currentLabelEditor.hidden = true;
+            this.currentLabel.hidden = false;
+            this.changeHistoryRangeValue(Math.floor(Date.parse(this.currentLabelEditor.value) / 1000));
+        });
+
+        this.historyPrevButton.addEventListener('click', () => {
+            this.changeHistoryRangeValue(Math.max(this.historyRange.min, this.historyRange.value - 60));
+        });
+        this.historyNextButton.addEventListener('click', () => {
+            this.changeHistoryRangeValue(Math.min(this.historyRange.max, this.historyRange.value + 60));
         });
 
         this.historyPaintboard.addEventListener('load', () => {
