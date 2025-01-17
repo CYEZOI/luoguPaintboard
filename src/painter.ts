@@ -65,6 +65,7 @@ export class Painter {
     };
     getPaintEvent = async (id: number) => { return this.paintingQueue.get(id); };
     moveAllPaintingToPending = async () => { this.paintQueue.push(...Array.from(this.paintingQueue.values())); this.paintingQueue.clear(); };
+    clearPaintQueue = async () => { this.paintQueue = []; };
 };
 
 export const painter = new Painter();

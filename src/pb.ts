@@ -4,6 +4,8 @@ import { socket } from './socket';
 import { logger } from './logger';
 import { appendFile, readdir, readFile, writeFile } from 'fs/promises';
 import gzip from 'node-gzip';
+import { images } from './image';
+import { painter } from './painter';
 
 const pbLogger = logger.child({ module: 'pb' });
 
@@ -52,6 +54,8 @@ export class PB {
                 }
             }
             gzip.gzip(byteArray).then((compressed) => { writeFile(`pb/${Date.now()}.pb`, compressed); });
+            await painter.clearPaintQueue();
+            await images.repaint();
             pbLogger.info('Paintboard refreshed.');
         } catch (err) {
             pbLogger.error(`Failed to refresh paintboard: ${err}`);

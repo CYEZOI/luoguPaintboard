@@ -24,17 +24,24 @@ export class Image {
             const channels = metadata.channels!;
 
             const pixels = await this.image.raw().toBuffer();
-            const paintEvents = [];
             for (let i = 0; i < pixels.length; i += channels) {
                 const pos = new POS(i / channels % this.width, Math.floor(i / channels / this.width))
                 const rgb = new RGB(pixels[i]!, pixels[i + 1]!, pixels[i + 2]!);
                 this.pixelData.set(pos.toNumber(), rgb);
-                if (pb.getBoardData(this.toBoardPos(pos))?.toOutputString() !== rgb.toOutputString()) {
-                    paintEvents.push({ pos: this.toBoardPos(pos), rgb });
-                }
             }
-            if (paintEvents.length > 0) { await painter.paint(paintEvents); }
+            await this.repaint();
         })();
+    }
+
+    repaint = async () => {
+        await this.load;
+        const paintEvents = [];
+        for (const [pos, rgb] of this.pixelData) {
+            if (pb.getBoardData(this.toBoardPos(POS.fromNumber(pos)))?.toOutputString() !== rgb.toOutputString()) {
+                paintEvents.push({ pos: this.toBoardPos(POS.fromNumber(pos)), rgb });
+            }
+        }
+        if (paintEvents.length > 0) { await painter.paint(paintEvents); }
     }
 
     toBoardPos = (pos: POS) => { return new POS(this.init.x + pos.x, this.init.y + pos.y); };
@@ -61,6 +68,10 @@ export class Images {
             }
         }
     };
+
+    repaint = async () => {
+        for (const [_, image] of this.images) { await image.repaint(); }
+    }
 };
 
 export const images = new Images();
