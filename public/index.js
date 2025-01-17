@@ -4,7 +4,10 @@ import { TOKENS } from './token.js';
 import { MONITOR } from './monitor.js';
 import { fetchConfig } from './config.js';
 
+const bodyLoading = document.getElementById('bodyLoading');
+
 fetchConfig().then(() => {
+    bodyLoading.classList.add('d-none');
     const pb = new PB(); pb.registerEvent();
     const pbHistory = new PBHistory(); pbHistory.registerEvent();
     const tokens = new TOKENS(); tokens.registerEvent();

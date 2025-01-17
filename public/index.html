@@ -19,7 +19,7 @@
             transition: all 0.5s;
         }
 
-	.blurContainer>:last-child {
+        .blurContainer>:last-child {
             position: absolute;
             top: 0;
             left: 0;
@@ -36,14 +36,18 @@
 </head>
 
 <body class="placeholder-glow">
+    <div id="bodyLoading"
+        class="bg-body position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center z-3">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
     <header>
         <nav class="navbar navbar-expand-sm bg-body-tertiary">
             <div class="container">
                 <a class="navbar-brand" href="#">冬日绘板</a>
-                <button class="navbar-toggler d-lg-none" data-bs-toggle="collapse" data-bs-target="#NavigateBar">
+                <button class="navbar-toggler d-lg-none" data-bs-toggle="collapse" data-bs-target="#navigateBar">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse navbar-collapse" id="NavigateBar">
+                <div class="collapse navbar-collapse" id="navigateBar">
                     <ul class="navbar-nav me-auto mt-2 mt-lg-0">
                     </ul>
                 </div>
