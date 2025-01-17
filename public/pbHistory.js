@@ -78,10 +78,10 @@ export class PBHistory {
         });
 
         this.historyPrevButton.addEventListener('click', () => {
-            this.changeHistoryRangeValue(Math.max(this.historyRange.min, this.historyRange.value - 60));
+            this.changeHistoryRangeValue(Math.max(this.historyRange.min, parseInt(this.historyRange.value) - 60));
         });
         this.historyNextButton.addEventListener('click', () => {
-            this.changeHistoryRangeValue(Math.min(this.historyRange.max, this.historyRange.value + 60));
+            this.changeHistoryRangeValue(Math.min(this.historyRange.max, parseInt(this.historyRange.value) + 60));
         });
 
         this.historyPaintboard.addEventListener('load', () => {
