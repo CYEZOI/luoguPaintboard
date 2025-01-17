@@ -53,10 +53,15 @@ export const createServer = () => {
         res.json({ oldest: await pb.getOldestHistory() });
     });
     app.get('/history/:time', async (req: Request, res: Response) => {
-        const time = new Date(parseInt(req.params['time']!) * 1000);
+        const timeString = req.params['time'];
+        if (typeof timeString !== 'string' || !/^\d+$/.test(timeString)) {
+            res.status(400).json({ error: 'Invalid time' });
+            return;
+        }
+        const time = new Date(parseInt(timeString) * 1000);
         const board = await pb.getHistory(time);
         if (board === null) {
-            res.json({ error: 'No history found' });
+            res.status(404).json({ error: 'History not found' });
             return;
         }
         const image = sharp(Buffer.from(board), { raw: { width: config.pb.width, height: config.pb.height, channels: 3 } });
