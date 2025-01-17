@@ -66,14 +66,29 @@ export const createServer = () => {
     });
 
     app.ws('/monitor/ws', async (ws, _) => {
+        var lastIn = 0;
+        var lastOut = 0;
         setIntervalImmediately(async () => {
-            ws.send(JSON.stringify({
-                currentLoad: await si.currentLoad(),
-                mem: await si.mem(),
-                disksIO: await si.disksIO(),
-                networkStats: await si.networkStats(),
-                osInfo: await si.osInfo(),
-            }));
+            const currentLoad = await si.currentLoad();
+            const mem = await si.mem();
+            const disksIO = await si.disksIO();
+            const networkStats = await si.networkStats();
+            const osInfo = await si.osInfo();
+            var message = `OS: ${osInfo.platform}   ${osInfo.distro} ${osInfo.release} ${osInfo.arch}   ${osInfo.hostname}\n`;
+            message += `CPU: ${currentLoad.currentLoad.toFixed(2)}%   ${currentLoad.cpus.map((cpu: any) => cpu.load.toFixed(2))}\n`;
+            message += `Memory: ${(mem.used / mem.total * 100).toFixed(2)}%   ${(mem.used / 1024 / 1024).toFixed(2)}MB / ${(mem.total / 1024 / 1024).toFixed(2)}MB\n`;
+            if (disksIO) {
+                message += `DiskIO: Read ${(disksIO.rIO / 1024 / 1024).toFixed(2)}MB/s   Write ${(disksIO.wIO / 1024 / 1024).toFixed(2)}MB/s\n`;
+            }
+            if (networkStats.length > 0) {
+                const currentIn = networkStats[0]!.rx_bytes;
+                const currentOut = networkStats[0]!.tx_bytes;
+                if (lastIn !== 0 && lastOut !== 0) {
+                    message += `Network: In ${((currentIn - lastIn) / 1024).toFixed(2)}KB/s   Out ${((currentOut - lastOut) / 1024).toFixed(2)}KB/s\n`;
+                }
+                lastIn = currentIn, lastOut = currentOut;
+            }
+            ws.send(message);
         }, 1000);
     });
 
