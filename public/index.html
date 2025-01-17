@@ -135,7 +135,56 @@
                     <div class="card-header">系统信息</div>
                     <pre id="systemInfo" class="card-body w-100"></pre>
                 </div>
+                <div class="card mb-3">
+                    <div class="card-header">图片管理</div>
+                    <div class="card-body">
+                        <input type="file" class="form-control mb-3" id="imageInput" accept="image/*">
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">左侧</span>
+                                    <input type="number" class="form-control" id="imageXInput" min="0" step="1">
+                                    <span class="input-group-text">像素</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">顶端</span>
+                                    <input type="number" class="form-control" id="imageYInput" min="0" step="1">
+                                    <span class="input-group-text">像素</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">宽度</span>
+                                    <input type="number" class="form-control" id="imageWidthInput" min="1" step="1">
+                                    <span class="input-group-text">像素</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">高度</span>
+                                    <input type="number" class="form-control" id="imageHeightInput" min="1" step="1">
+                                    <span class="input-group-text">像素</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-row">
+                            <div class="flex-grow-1 me-2">
+                                <div class="input-group">
+                                    <span class="input-group-text">图片名称</span>
+                                    <input class="form-control" id="imageNameInput">
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-primary" id="imageButton">上传</button>
+                        </div>
+                        <canvas id="imageCanvas" class="w-100 mt-3" hidden></canvas>
+                    </div>
+                </div>
             </div>
+        </div>
         </div>
     </main>
     <footer class="text-center mb-3">

@@ -95,9 +95,7 @@ export class TOKENS {
             const paste = this.tokenPasteIdInput.value;
             fetch('/token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json', },
                 body: JSON.stringify([{ uid, paste, }]),
             })
                 .then(res => res.json())
@@ -132,9 +130,7 @@ export class TOKENS {
             tokenBulkInfo.innerText = `导入 ${tokens.length} 条数据`;
             fetch('/token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json', },
                 body: JSON.stringify(tokens),
             })
                 .then(res => res.json())

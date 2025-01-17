@@ -1,8 +1,10 @@
 import sharp from 'sharp';
-import { POS, RGB } from './utils';
+import { POS, RGB, setIntervalImmediately } from './utils';
 import { painter } from './painter';
 import { pb } from './pb';
 import { logger } from './logger';
+import { closing } from './signal';
+import { prisma } from './db';
 
 const imageLogger = logger.child({ module: 'image' });
 
@@ -10,31 +12,40 @@ export class Image {
     private image!: sharp.Sharp;
     public width!: number;
     public height!: number;
+    private init!: POS;
     public readonly pixelData: Map<number, RGB> = new Map();
-    private readonly init: POS;
-    public load: Promise<void>;
+    public loaded!: Promise<void>;
 
-    constructor(imagePath: string, init: POS) {
-        this.image = sharp(imagePath);
-        this.init = init;
-        this.load = (async () => {
+    constructor(private readonly id: number) { };
+
+    load = async () => {
+        const imageData = await prisma.image.findUnique({ where: { id: this.id, }, });
+        if (!imageData) { throw 'Image not found.'; }
+
+        this.image = sharp(imageData.image);
+        this.init = POS.fromNumber(imageData.init);
+
+        this.loaded = (async () => {
+            const scale = imageData.scale;
             const metadata = await this.image.metadata();
-            this.width = metadata.width!;
-            this.height = metadata.height!;
+            this.width = Math.round(metadata.width! * scale);
+            this.height = Math.round(metadata.height! * scale);
+            this.image = this.image.resize(this.width, this.height, { fit: 'cover' });
             const channels = metadata.channels!;
 
             const pixels = await this.image.raw().toBuffer();
+            if (pixels.length !== this.width * this.height * channels) { throw 'Invalid image data.'; }
             for (let i = 0; i < pixels.length; i += channels) {
                 const pos = new POS(i / channels % this.width, Math.floor(i / channels / this.width))
                 const rgb = new RGB(pixels[i]!, pixels[i + 1]!, pixels[i + 2]!);
                 this.pixelData.set(pos.toNumber(), rgb);
             }
-            await this.repaint();
+            this.repaint();
         })();
     }
 
     repaint = async () => {
-        await this.load;
+        await this.loaded;
         const paintEvents = [];
         for (const [pos, rgb] of this.pixelData) {
             if (pb.getBoardData(this.toBoardPos(POS.fromNumber(pos)))?.toOutputString() !== rgb.toOutputString()) {
@@ -49,16 +60,27 @@ export class Image {
 };
 
 export class Images {
-    private readonly images: Image[] = [];
+    private readonly images: Map<number, Image> = new Map();
 
-    addImage = (imagePath: string, init: POS) => {
-        imageLogger.info(`Adding image ${imagePath} at ${init.toOutputString()}`);
-        this.images.push(new Image(imagePath, init));
+    startMonitoring = async () => {
+        return await setIntervalImmediately(async (stop) => {
+            if (closing) { stop(); }
+            const images = await prisma.image.findMany();
+            for (const image of images) {
+                if (!this.images.has(image.id)) {
+                    const imageObj = new Image(image.id);
+                    imageObj.load().then(() => {
+                        imageLogger.info(`Image ${image.id} loaded.`);
+                        this.images.set(image.id, imageObj);
+                    });
+                }
+            }
+        }, 100);
     };
 
     checkColor = async (pos: POS, color: RGB) => {
-        for (const image of this.images) {
-            await image.load;
+        for (const [_, image] of this.images) {
+            await image.loaded;
             const imagePos = image.fromBoardPos(pos);
             if (imagePos.x >= 0 && imagePos.x < image.width && imagePos.y >= 0 && imagePos.y < image.height) {
                 const rgb = image.pixelData!.get(imagePos.toNumber())!;

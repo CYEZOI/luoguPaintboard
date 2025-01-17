@@ -8,16 +8,15 @@ import { prisma } from './db';
 import expressWs from 'express-ws';
 import { tokens } from './token';
 import si from 'systeminformation';
-import { setIntervalImmediately } from './utils';
+import { POS, setIntervalImmediately } from './utils';
 
 const serverLogger = logger.child({ module: 'server' });
 
 export const createServer = () => {
     const app = expressWs(express()).app;
-    const port = 3000;
 
     app.use(express.static('public'));
-    app.use(express.json());
+    app.use(express.json({ limit: `${config.server.bodyLimit}mb` }));
 
     app.get('/config', async (_: Request, res: Response) => {
         res.json(config);
@@ -97,5 +96,55 @@ export const createServer = () => {
         }, 1000);
     });
 
-    app.listen(port, () => { serverLogger.info(`Server started at http://localhost:${port}`); });
+    app.get('/image', async (_: Request, res: Response) => {
+        res.json(await prisma.image.findMany({ omit: { image: true } }));
+    });
+    app.get('/image/:id', async (req: Request, res: Response) => {
+        const idString = req.params['id'];
+        if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
+            res.status(400).json({ error: 'Invalid id' });
+            return;
+        }
+        const id = parseInt(idString);
+        const image = await prisma.image.findUnique({ where: { id } });
+        if (!image) {
+            res.status(404).json({ error: 'Image not found' });
+            return;
+        }
+        res.setHeader('Content-Type', 'image/png');
+        res.send(image.image);
+    });
+    app.post('/image', async (req: Request, res: Response) => {
+        if (typeof req.body.name !== 'string' ||
+            typeof req.body.image !== 'string' ||
+            typeof req.body.scale !== 'number' ||
+            typeof req.body.initX !== 'number' ||
+            typeof req.body.initY !== 'number') {
+            res.status(400).json({ error: 'Invalid request format' });
+            return;
+        }
+        await prisma.image.create({
+            data: {
+                name: req.body.name,
+                image: Buffer.from(req.body.image.replace(/^data:image\/\w+;base64,/, ''), 'base64'),
+                scale: req.body.scale,
+                init: new POS(req.body.initX, req.body.initY).toNumber(),
+            },
+        });
+        res.json({});
+    });
+    app.delete('/image/:id', async (req: Request, res: Response) => {
+        const idString = req.params['id'];
+        if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
+            res.status(400).json({ error: 'Invalid id' });
+            return;
+        }
+        const id = parseInt(idString);
+        await prisma.image.deleteMany({ where: { id } });
+        res.send('Image deleted');
+    });
+
+    app.listen(config.server.port, () => {
+        serverLogger.info(`Server started at port ${config.server.port}`);
+    });
 };

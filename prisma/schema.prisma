@@ -15,3 +15,11 @@ model token {
   message  String?
   enabled  Boolean  @default(true)
 }
+
+model image {
+  id    Int    @id @default(autoincrement())
+  name  String
+  image Bytes
+  scale Float
+  init  Int
+}

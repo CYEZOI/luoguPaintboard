@@ -49,6 +49,6 @@ socket:
   batch: true # 是否启用粘包
   retry: 1000 # 重连间隔
 
-report:
-  size: 10 # 显示的日志数量
- 
+server:
+  port: 3000 # 本地服务器端口
+  bodyLimit: 30 # 上传数据大小限制 
