@@ -70,9 +70,11 @@ export const createServer = () => {
     });
 
     app.ws('/monitor/ws', async (ws, _) => {
+        var unload = false;
         var lastIn = 0;
         var lastOut = 0;
-        setIntervalImmediately(async () => {
+        setIntervalImmediately(async (stop) => {
+            if (unload) { stop(); }
             const currentLoad = await si.currentLoad();
             const mem = await si.mem();
             const disksIO = await si.disksIO();
@@ -94,6 +96,7 @@ export const createServer = () => {
             }
             ws.send(message);
         }, 1000);
+        ws.addEventListener('close', () => { unload = true; });
     });
 
     app.get('/image', async (_: Request, res: Response) => {
