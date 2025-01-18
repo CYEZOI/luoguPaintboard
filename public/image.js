@@ -86,6 +86,7 @@ export class IMAGE {
                 .then(data => {
                     if (data.error) {
                         alert(data.error);
+                        this.imageButton.disabled = false;
                         return;
                     }
                     this.imageCanvas.hidden = true;
