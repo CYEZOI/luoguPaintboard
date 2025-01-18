@@ -187,6 +187,12 @@ export class TOKENS {
                 tokenSocket.addEventListener('close', () => {
                     setTimeout(() => { this.setupSocket(); }, 1000);
                 });
+            })
+            .catch(() => {
+                this.tokenList.innerHTML = `<div class="d-flex justify-content-center">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                </div>`;
+                setTimeout(() => { this.setupSocket(); }, 1000);
             });
     }
 }

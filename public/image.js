@@ -65,6 +65,8 @@ export class IMAGE {
         });
 
         this.imageButton.addEventListener('click', () => {
+            this.imageButton.disabled = true;
+
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = this.image.width
             tempCanvas.height = this.image.height;
@@ -91,7 +93,11 @@ export class IMAGE {
                         this.imageXInput.value = this.imageYInput.value =
                         this.imageWidthInput.value = this.imageHeightInput.value =
                         this.imageNameInput.value = '';
+                    this.imageButton.disabled = false;
                     this.fetchImageList();
+                })
+                .catch(err => {
+                    this.imageButton.disabled = false;
                 });
         });
     }

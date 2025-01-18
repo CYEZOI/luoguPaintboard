@@ -80,7 +80,8 @@ export const createServer = () => {
             const disksIO = await si.disksIO();
             const networkStats = await si.networkStats();
             const osInfo = await si.osInfo();
-            var message = `OS: ${osInfo.platform}   ${osInfo.distro} ${osInfo.release} ${osInfo.arch}   ${osInfo.hostname}\n`;
+            var message = `${new Date().toLocaleString()}\n`;
+            message += `OS: ${osInfo.platform}   ${osInfo.distro} ${osInfo.release} ${osInfo.arch}   ${osInfo.hostname}\n`;
             message += `CPU: ${currentLoad.currentLoad.toFixed(2)}%   ${currentLoad.cpus.map((cpu: any) => cpu.load.toFixed(2))}\n`;
             message += `Memory: ${(mem.used / mem.total * 100).toFixed(2)}%   ${(mem.used / 1024 / 1024).toFixed(2)}MB / ${(mem.total / 1024 / 1024).toFixed(2)}MB\n`;
             if (disksIO) {
