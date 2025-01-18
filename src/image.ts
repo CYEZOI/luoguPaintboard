@@ -15,6 +15,7 @@ export class Image {
     private init!: POS;
     public readonly pixelData: Map<number, RGB> = new Map();
     public loaded!: Promise<void>;
+    public name!: string;
 
     constructor(private readonly id: number) { };
 
@@ -24,6 +25,7 @@ export class Image {
 
         this.image = sharp(imageData.image);
         this.init = POS.fromNumber(imageData.init);
+        this.name = imageData.name;
 
         this.loaded = (async () => {
             const scale = imageData.scale;
@@ -70,9 +72,15 @@ export class Images {
                 if (!this.images.has(image.id)) {
                     const imageObj = new Image(image.id);
                     imageObj.load().then(() => {
-                        imageLogger.info(`Image ${image.id} loaded.`);
+                        imageLogger.warn(`Image ${image.id} (${image.name}) loaded.`);
                         this.images.set(image.id, imageObj);
                     });
+                }
+            }
+            for (const [id, _] of this.images) {
+                if (!images.find((i) => i.id === id)) {
+                    imageLogger.warn(`Image ${id} (${this.images.get(id)!.name}) deleted.`);
+                    this.images.delete(id);
                 }
             }
         }, 100);

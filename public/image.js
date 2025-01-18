@@ -2,21 +2,26 @@ import { config } from "./config.js";
 
 export class IMAGE {
     paintboard = document.getElementById('paintboardContainer').firstElementChild;
+
     imageInput = document.getElementById('imageInput');
     imageXInput = document.getElementById('imageXInput');
     imageYInput = document.getElementById('imageYInput');
     imageWidthInput = document.getElementById('imageWidthInput');
     imageHeightInput = document.getElementById('imageHeightInput');
     imageNameInput = document.getElementById('imageNameInput');
+
     imageButton = document.getElementById('imageButton');
     imageCanvas = document.getElementById('imageCanvas');
+
+    imageList = document.getElementById('imageList');
+
     image = new Image();
 
     constructor() {
         this.imageCanvas.width = config.pb.width;
         this.imageCanvas.height = config.pb.height;
+        this.fetchImageList();
     }
-
 
     redrawImage = () => {
         const ctx = this.imageCanvas.getContext('2d');
@@ -86,8 +91,51 @@ export class IMAGE {
                         this.imageXInput.value = this.imageYInput.value =
                         this.imageWidthInput.value = this.imageHeightInput.value =
                         this.imageNameInput.value = '';
+                    this.fetchImageList();
                 });
         });
     }
+
+    fetchImageList = () => {
+        fetch('/image')
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                this.imageList.innerHTML = '';
+                for (const image of data) {
+                    const imageElement = document.createElement('div'); this.imageList.appendChild(imageElement);
+                    imageElement.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+
+                    const left = document.createElement('div'); imageElement.appendChild(left);
+                    left.innerHTML = `${image.name} ${(image.scale * 100).toFixed(2)}% (${image.init.x}, ${image.init.y})`;
+
+                    const right = document.createElement('div'); imageElement.appendChild(right);
+                    right.classList.add('btn-group');
+                    const showButton = document.createElement('button'); right.appendChild(showButton);
+                    showButton.classList.add('btn', 'btn-sm', 'btn-outline-primary');
+                    showButton.innerText = '查看';
+                    showButton.addEventListener('click', () => {
+                        open(`/image/${image.id}`, '_blank');
+                    });
+                    const deleteButton = document.createElement('button'); right.appendChild(deleteButton);
+                    deleteButton.classList.add('btn', 'btn-sm', 'btn-outline-danger');
+                    deleteButton.innerText = '删除';
+                    deleteButton.addEventListener('click', () => {
+                        fetch(`/image/${image.id}`, { method: 'DELETE' })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (data.error) {
+                                    alert(data.error);
+                                    return;
+                                }
+                                this.fetchImageList();
+                            });
+                    });
+                }
+            });
+    };
 }
 

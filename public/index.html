@@ -106,14 +106,14 @@
                         </div>
 
                         <textarea class="form-control mb-1" id="tokenBulkInput" rows="5" placeholder="批量添加"></textarea>
-                        <div class="d-flex flex-row-reverse mb-3">
+                        <div class="d-flex flex-row-reverse">
                             <div>
                                 <span id="tokenBulkInfo" class="text-muted align-middle me-2"></span>
                                 <button class="btn btn-outline-primary text-end" id="tokenBulkButton">批量添加</button>
                             </div>
                         </div>
 
-                        <div class="accordion" id="tokenListAccordion">
+                        <div class="accordion mt-3" id="tokenListAccordion">
                             <div class="accordion-item">
                                 <h2 class="accordion-header">
                                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
@@ -181,6 +181,23 @@
                             <button class="btn btn-outline-primary" id="imageButton">上传</button>
                         </div>
                         <canvas id="imageCanvas" class="w-100 mt-3" hidden></canvas>
+
+                        <div class="accordion mt-3" id="imageListAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#imageListContainer">
+                                        图片列表
+                                    </button>
+                                </h2>
+                                <div id="imageListContainer" class="accordion-collapse collapse"
+                                    data-bs-parent="#imageListAccordion">
+                                    <div class="accordion-body">
+                                        <div class="list-group" id="imageList"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

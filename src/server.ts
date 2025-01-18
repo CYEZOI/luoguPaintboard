@@ -100,7 +100,10 @@ export const createServer = () => {
     });
 
     app.get('/image', async (_: Request, res: Response) => {
-        res.json(await prisma.image.findMany({ omit: { image: true } }));
+        res.json((await prisma.image.findMany({ omit: { image: true } })).map((image) => ({
+            ...image,
+            init: POS.fromNumber(image.init),
+        })));
     });
     app.get('/image/:id', async (req: Request, res: Response) => {
         const idString = req.params['id'];
@@ -114,8 +117,8 @@ export const createServer = () => {
             res.status(404).json({ error: 'Image not found' });
             return;
         }
-        res.setHeader('Content-Type', 'image/png');
-        res.send(image.image);
+        res.write(image.image);
+        res.end();
     });
     app.post('/image', async (req: Request, res: Response) => {
         if (typeof req.body.name !== 'string' ||
@@ -144,10 +147,10 @@ export const createServer = () => {
         }
         const id = parseInt(idString);
         await prisma.image.deleteMany({ where: { id } });
-        res.send('Image deleted');
+        res.json({});
     });
 
     app.listen(config.server.port, () => {
-        serverLogger.info(`Server started at port ${config.server.port}`);
+        serverLogger.warn(`Server started at port ${config.server.port}`);
     });
 };
