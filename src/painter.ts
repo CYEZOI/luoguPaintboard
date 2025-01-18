@@ -13,10 +13,7 @@ export class Painter {
     private paintQueue: { pos: POS, rgb: RGB }[] = [];
     private paintingQueue: Map<number, { uid: number, pos: POS, rgb: RGB }> = new Map();
 
-    paint = async (events: { pos: POS, rgb: RGB }[]): Promise<void> => {
-        this.paintQueue.push(...events);
-        if (config.painter.random) { this.paintQueue = this.paintQueue.sort(() => Math.random() - 0.5); }
-    };
+    paint = async (events: { pos: POS, rgb: RGB }[]): Promise<void> => { this.paintQueue.push(...events); };
 
     startPainting = async (): Promise<void> => {
         await socket.socketOpen;
@@ -30,11 +27,13 @@ export class Painter {
                 if (closing || tokenList.length) { stop(tokenList); }
             }, 100);
             if (closing) { break; }
-            const paintEvents = this.paintQueue.splice(0, tokenList.length);
             const usedUid = new Array<number>();
-            for (const paintEvent of paintEvents) {
-                const { uid, token } = tokenList.shift()!;
+            for (const tokenData of tokenList) {
+                const { uid, token } = tokenData;
                 usedUid.push(uid);
+
+                if (!this.paintQueue.length) { break; }
+                const paintEvent = this.paintQueue.splice(config.painter.random ? Math.floor(Math.random() * this.paintQueue.length) : 0, 1)[0]!;
                 painterLogger.debug(`Painting uid: ${uid} (${token}), pos: ${paintEvent.pos.toString()}, rgb: ${paintEvent.rgb.toString()}`);
 
                 const id = Math.floor(Math.random() * ID_MAX);
@@ -52,7 +51,7 @@ export class Painter {
             }
 
             await tokens.updateUseTime(usedUid, new Date());
-            painterLogger.info(`Painted ${paintEvents.length} pixels`);
+            painterLogger.info(`Painted ${usedUid.length} pixels`);
         }
     };
 

@@ -34,7 +34,7 @@ pb:
   refresh: 180000 # 画板整体刷新间隔
 
 painter:
-  random: false # 是否启用随机顺序绘图
+  random: true # 是否启用随机顺序绘图
   retry: 1000 # 如果已经到时间但是服务器返回正在冷却，那么再等待多久
 
 socket:
