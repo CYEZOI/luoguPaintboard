@@ -70,11 +70,12 @@ export class TOKENS {
         message.classList.add('text-muted');
         message.innerText = token.message;
 
+        tokenElement.setAttribute('lastUsed', token.lastUsed);
         setIntervalImmediately(() => {
             tokenElement.classList.remove('list-group-item-warning');
             tokenElement.classList.remove('list-group-item-success');
             if (tokenElement.classList.contains('list-group-item-danger')) { return; }
-            const wait = new Date(token.lastUsed).getTime() + config.token.cd - Date.now();
+            const wait = new Date(tokenElement.getAttribute('lastUsed')).getTime() + config.token.cd - Date.now();
             if (wait < 0) {
                 tokenElement.classList.add('list-group-item-success');
             }
@@ -179,19 +180,7 @@ export class TOKENS {
                         else { tokenElement.classList.add('list-group-item-danger'); }
                     }
                     if (data.lastUsed !== undefined) {
-                        const wait = new Date(data.lastUsed).getTime() + config.token.cd - Date.now();
-                        const small = tokenElement.querySelector('div.form-check-label > small');
-                        small.innerText = `等待 ${Math.floor(wait / 1000)} 秒`;
-                        if (wait < 0) {
-                            small.setAttribute('hidden', '');
-                            tokenElement.classList.remove('list-group-item-warning');
-                            tokenElement.classList.add('list-group-item-success');
-                        }
-                        else {
-                            small.removeAttribute('hidden');
-                            tokenElement.classList.remove('list-group-item-success');
-                            tokenElement.classList.add('list-group-item-warning');
-                        }
+                        tokenElement.setAttribute('lastUsed', data.lastUsed);
                     }
                 });
 
