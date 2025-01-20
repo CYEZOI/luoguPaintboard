@@ -3,5 +3,6 @@ dist/
 package-lock.json
 pnpm-lock.yaml
 board.jpg
+image.jpg
 prisma/dev.sqlite
 pb/
