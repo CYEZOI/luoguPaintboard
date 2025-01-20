@@ -75,21 +75,23 @@ export const createServer = () => {
         var lastOut = 0;
         setIntervalImmediately(async (stop) => {
             if (unload) { stop(); }
-            const currentLoad = await si.currentLoad();
-            const mem = await si.mem();
-            const disksIO = await si.disksIO();
-            const networkStats = await si.networkStats();
-            const osInfo = await si.osInfo();
+            const data = await si.get({
+                currentLoad: 'currentLoad,cpus',
+                mem: 'used,total',
+                disksIO: 'rIO,wIO',
+                networkStats: 'rx_bytes,tx_bytes',
+                osInfo: 'platform,distro,release,arch,hostname',
+            });
             var message = `${new Date().toLocaleString()}\n`;
-            message += `OS: ${osInfo.platform}   ${osInfo.distro} ${osInfo.release} ${osInfo.arch}   ${osInfo.hostname}\n`;
-            message += `CPU: ${currentLoad.currentLoad.toFixed(2)}%   ${currentLoad.cpus.map((cpu: any) => cpu.load.toFixed(2))}\n`;
-            message += `Memory: ${(mem.used / mem.total * 100).toFixed(2)}%   ${(mem.used / 1024 / 1024).toFixed(2)}MB / ${(mem.total / 1024 / 1024).toFixed(2)}MB\n`;
-            if (disksIO) {
-                message += `DiskIO: Read ${(disksIO.rIO / 1024 / 1024).toFixed(2)}MB/s   Write ${(disksIO.wIO / 1024 / 1024).toFixed(2)}MB/s\n`;
+            message += `OS: ${data.osInfo.platform}   ${data.osInfo.distro} ${data.osInfo.release} ${data.osInfo.arch}   ${data.osInfo.hostname}\n`;
+            message += `CPU: ${data.currentLoad.currentLoad.toFixed(2)}%   ${data.currentLoad.cpus.map((cpu: any) => cpu.load.toFixed(2))}\n`;
+            message += `Memory: ${(data.mem.used / data.mem.total * 100).toFixed(2)}%   ${(data.mem.used / 1024 / 1024).toFixed(2)}MB / ${(data.mem.total / 1024 / 1024).toFixed(2)}MB\n`;
+            if (data.disksIO) {
+                message += `DiskIO: Read ${(data.disksIO.rIO / 1024 / 1024).toFixed(2)}MB/s   Write ${(data.disksIO.wIO / 1024 / 1024).toFixed(2)}MB/s\n`;
             }
-            if (networkStats.length > 0) {
-                const currentIn = networkStats[0]!.rx_bytes;
-                const currentOut = networkStats[0]!.tx_bytes;
+            if (data.networkStats.length > 0) {
+                const currentIn = data.networkStats[0]!.rx_bytes;
+                const currentOut = data.networkStats[0]!.tx_bytes;
                 if (lastIn !== 0 && lastOut !== 0) {
                     message += `Network: In ${((currentIn - lastIn) / 1024).toFixed(2)}KB/s   Out ${((currentOut - lastOut) / 1024).toFixed(2)}KB/s\n`;
                 }
