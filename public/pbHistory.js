@@ -54,7 +54,6 @@ export class PBHistory {
         };
         this.historyRange.onchange = () => {
             this.historyRange.disabled = true;
-            historyContainer.classList.add('loading');
             const time = this.historyRange.value;
             this.historyPaintboard.setAttribute('src', `/history/${time}`);
         };
@@ -86,11 +85,9 @@ export class PBHistory {
 
         this.historyPaintboard.addEventListener('load', () => {
             this.historyRange.disabled = false;
-            historyContainer.classList.remove('loading');
         });
         this.historyPaintboard.addEventListener('error', () => {
             this.historyRange.disabled = false;
-            historyContainer.classList.remove('loading');
             alert('Failed to load history image');
         });
         this.historyPaintboard.addEventListener('click', () => { open(this.historyPaintboard.src); });

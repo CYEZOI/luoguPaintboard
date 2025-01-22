@@ -63,10 +63,18 @@ export const createServer = () => {
             res.status(404).json({ error: 'History not found' });
             return;
         }
-        const image = sharp(Buffer.from(board), { raw: { width: config.pb.width, height: config.pb.height, channels: 3 } });
-        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Type', 'image/jpeg');
         res.setHeader('Content-Encoding', 'gzip');
-        image.png().pipe(createGzip()).pipe(res);
+        sharp(Buffer.from(board), {
+            raw: {
+                width: config.pb.width,
+                height: config.pb.height,
+                channels: 3
+            }
+        }).jpeg({
+            quality: 100,
+            progressive: true,
+        }).pipe(createGzip()).pipe(res);
     });
 
     app.ws('/monitor/ws', async (ws, _) => {
@@ -120,8 +128,12 @@ export const createServer = () => {
             res.status(404).json({ error: 'Image not found' });
             return;
         }
-        res.write(image.image);
-        res.end();
+        res.setHeader('Content-Type', 'image/jpeg');
+        res.setHeader('Content-Encoding', 'gzip');
+        sharp(image.image).jpeg({
+            quality: 100,
+            progressive: true,
+        }).pipe(createGzip()).pipe(res);
     });
     app.post('/image', async (req: Request, res: Response) => {
         if (typeof req.body.name !== 'string' ||
