@@ -9,12 +9,20 @@ import expressWs from 'express-ws';
 import { tokens } from './token';
 import si from 'systeminformation';
 import { POS, setIntervalImmediately } from './utils';
+import { validate } from 'express-jsonschema';
 
 const serverLogger = logger.child({ module: 'server' });
 
 export const createServer = () => {
     const app = expressWs(express()).app;
 
+    app.use((err: any, _: Request, res: Response, next: any) => {
+        if (err.name === 'JsonSchemaValidation') {
+            res.status(400).json({ error: 'Invalid request format', details: err.validations });
+        } else {
+            next(err);
+        }
+    });
     app.use(express.static('public'));
     app.use(express.json({ limit: `${config.server.bodyLimit}mb` }));
 
@@ -25,22 +33,40 @@ export const createServer = () => {
     app.get('/token', async (_: Request, res: Response) => {
         res.json(await prisma.token.findMany());
     });
-    app.post('/token', async (req: Request, res: Response) => {
-        if (!Array.isArray(req.body) ||
-            req.body.some((item: any) => typeof item.uid !== 'number' || typeof item.paste !== 'string' || Object.keys(item).length !== 2)) {
-            res.status(400).json({ error: 'Invalid request format' });
-            return;
+    app.post('/token', validate({
+        body: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    uid: { type: 'number' },
+                    paste: { type: 'string' },
+                },
+                required: ['uid', 'paste'],
+                additionalProperties: false,
+            },
+            minItems: 1,
         }
+    }), async (req: Request, res: Response) => {
         await prisma.token.createMany({ data: req.body });
         res.json({});
     });
-    app.patch('/token/:uid', async (req: Request, res: Response) => {
+    app.patch('/token/:uid', validate({
+        body: {
+            type: 'object',
+            properties: {
+                enabled: { type: 'boolean' },
+            },
+            required: ['enabled'],
+            additionalProperties: false,
+        }
+    }), async (req: Request, res: Response) => {
         (req.body.enabled ? tokens.enableToken : tokens.disableToken)(parseInt(req.params['uid']!));
-        res.send('Token updated');
+        res.json({});
     });
     app.delete('/token/:uid', async (req: Request, res: Response) => {
         await prisma.token.deleteMany({ where: { uid: parseInt(req.params['uid']!) } });
-        res.send('Token deleted');
+        res.json({});
     });
     app.ws('/token/ws', async (ws, _) => {
         const listener = (data: any) => ws.send(JSON.stringify(data));
@@ -135,15 +161,20 @@ export const createServer = () => {
             progressive: true,
         }).pipe(createGzip()).pipe(res);
     });
-    app.post('/image', async (req: Request, res: Response) => {
-        if (typeof req.body.name !== 'string' ||
-            typeof req.body.image !== 'string' ||
-            typeof req.body.scale !== 'number' ||
-            typeof req.body.initX !== 'number' ||
-            typeof req.body.initY !== 'number') {
-            res.status(400).json({ error: 'Invalid request format' });
-            return;
+    app.post('/image', validate({
+        body: {
+            type: 'object',
+            properties: {
+                name: { type: 'string' },
+                image: { type: 'string' },
+                scale: { type: 'number' },
+                initX: { type: 'number' },
+                initY: { type: 'number' },
+            },
+            required: ['name', 'image', 'scale', 'initX', 'initY'],
+            additionalProperties: false,
         }
+    }), async (req: Request, res: Response) => {
         await prisma.image.create({
             data: {
                 name: req.body.name,
