@@ -77,11 +77,17 @@ export class Images {
                     });
                 }
             }
+            var needRepaint = false;
             for (const [id, _] of this.images) {
                 if (!images.find((i) => i.id === id)) {
-                    imageLogger.warn(`Image ${id} (${this.images.get(id)!.name}) deleted.`);
+                    imageLogger.warn(`Image ${id} (${this.images.get(id)!.name}) unloaded.`);
                     this.images.delete(id);
+                    needRepaint = true;
                 }
+            }
+            if (needRepaint) {
+                await painter.clearPaintQueue();
+                await this.repaint();
             }
         }, 100);
     };
