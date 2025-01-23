@@ -12,9 +12,20 @@ export class TOKENS {
 
     tokenList = document.getElementById('tokenList');
 
+    tokenSocket;
+
     constructor() {
         this.setupSocket();
+        this.tokenButton.addEventListener('click', this.handleTokenButtonClick);
+        this.tokenBulkButton.addEventListener('click', this.handleTokenBulkButtonClick);
     }
+
+    destroy = () => {
+        this.tokenButton.removeEventListener('click', this.handleTokenButtonClick);
+        this.tokenBulkButton.removeEventListener('click', this.handleTokenBulkButtonClick);
+        this.tokenSocket.close(1000);
+        this.tokenList.innerHTML = '';
+    };
 
     createTokenElement = (token) => {
         const tokenElement = document.createElement('div');
@@ -90,69 +101,67 @@ export class TOKENS {
         return tokenElement;
     };
 
-    registerEvent = () => {
-        this.tokenButton.onclick = () => {
-            const uid = parseInt(this.tokenUidInput.value);
-            const paste = this.tokenPasteIdInput.value;
-            fetch('/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', },
-                body: JSON.stringify([{ uid, paste, }]),
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    this.tokenUidInput.value = this.tokenPasteIdInput.value = '';
+    handleTokenButtonClick = () => {
+        const uid = parseInt(this.tokenUidInput.value);
+        const paste = this.tokenPasteIdInput.value;
+        fetch('/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', },
+            body: JSON.stringify([{ uid, paste, }]),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                this.tokenUidInput.value = this.tokenPasteIdInput.value = '';
+                this.tokenList.appendChild(this.createTokenElement({
+                    uid,
+                    paste,
+                    enabled: true,
+                    token: null,
+                    lastUsed: new Date(),
+                    message: null,
+                }));
+            });
+    };
+
+    handleTokenBulkButtonClick = () => {
+        const tokens = this.tokenBulkInput.value.split('\n').map(line => {
+            const matched = line.match(/(\d+)[^\da-zA-Z]*(\w{8})/);
+            if (matched) {
+                return {
+                    uid: parseInt(matched[1]),
+                    paste: matched[2],
+                };
+            }
+            return null;
+        }).filter(token => token !== null);
+        tokenBulkInfo.innerText = `导入 ${tokens.length} 条数据`;
+        fetch('/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', },
+            body: JSON.stringify(tokens),
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                tokens.forEach(token => {
                     this.tokenList.appendChild(this.createTokenElement({
-                        uid,
-                        paste,
+                        uid: token.uid,
+                        paste: token.paste,
                         enabled: true,
                         token: null,
                         lastUsed: new Date(),
-                        message: null,
+                        message: '',
                     }));
                 });
-        };
-
-        this.tokenBulkButton.onclick = () => {
-            const tokens = this.tokenBulkInput.value.split('\n').map(line => {
-                const matched = line.match(/(\d+)[^\da-zA-Z]*(\w{8})/);
-                if (matched) {
-                    return {
-                        uid: parseInt(matched[1]),
-                        paste: matched[2],
-                    };
-                }
-                return null;
-            }).filter(token => token !== null);
-            tokenBulkInfo.innerText = `导入 ${tokens.length} 条数据`;
-            fetch('/token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', },
-                body: JSON.stringify(tokens),
-            })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    tokens.forEach(token => {
-                        this.tokenList.appendChild(this.createTokenElement({
-                            uid: token.uid,
-                            paste: token.paste,
-                            enabled: true,
-                            token: null,
-                            lastUsed: new Date(),
-                            message: '',
-                        }));
-                    });
-                });
-        };
-    }
+            });
+    };
 
     setupSocket = () => {
         fetch('/token')
@@ -167,8 +176,8 @@ export class TOKENS {
                     this.tokenList.appendChild(this.createTokenElement(token));
                 });
 
-                const tokenSocket = new WebSocket('/token/ws');
-                tokenSocket.addEventListener('message', event => {
+                this.tokenSocket = new WebSocket('/token/ws');
+                this.tokenSocket.addEventListener('message', event => {
                     const data = JSON.parse(event.data);
                     const uid = data.uid;
                     const tokenElement = this.tokenList.querySelector(`[data-uid="${uid}"]`);
@@ -184,7 +193,8 @@ export class TOKENS {
                     }
                 });
 
-                tokenSocket.addEventListener('close', () => {
+                this.tokenSocket.addEventListener('close', (e) => {
+                    if (e.code === 1000) { return; }
                     setTimeout(() => { this.setupSocket(); }, 1000);
                 });
             })
@@ -194,5 +204,5 @@ export class TOKENS {
                 </div>`;
                 setTimeout(() => { this.setupSocket(); }, 1000);
             });
-    }
+    };
 }

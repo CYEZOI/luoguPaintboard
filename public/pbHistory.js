@@ -36,14 +36,7 @@ export class PBHistory {
                     this.historyRange.oninput();
                 }, 1000);
             });
-    }
 
-    changeHistoryRangeValue = (time) => {
-        this.historyRange.value = time;
-        this.historyRange.onchange();
-    }
-
-    registerEvent = () => {
         this.historyRange.oninput = () => {
             const time = this.historyRange.value;
             this.oldestLabel.innerText = new Date(this.historyRange.min * 1000).toLocaleString();
@@ -91,5 +84,10 @@ export class PBHistory {
             alert('Failed to load history image');
         });
         this.historyPaintboard.addEventListener('click', () => { open(this.historyPaintboard.src); });
+    }
+
+    changeHistoryRangeValue = (time) => {
+        this.historyRange.value = time;
+        this.historyRange.onchange();
     };
 };

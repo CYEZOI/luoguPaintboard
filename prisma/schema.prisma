@@ -23,3 +23,8 @@ model image {
   scale Float
   init  Int
 }
+
+model session {
+  id      String   @id
+  created DateTime @default(now())
+}

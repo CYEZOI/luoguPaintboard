@@ -1,19 +1,24 @@
 export class MONITOR {
     systemInfo = document.getElementById('systemInfo');
+    monitorSocket;
 
     constructor() {
         this.setupSocket();
     }
 
-    setupSocket() {
-        const monitorSocket = new WebSocket('/monitor/ws');
-        monitorSocket.addEventListener('message', (e) => {
+    destroy = () => {
+        this.monitorSocket.close(1000);
+        this.systemInfo.innerHTML = '';
+    };
+
+    setupSocket = () => {
+        this.monitorSocket = new WebSocket('/monitor/ws');
+        this.monitorSocket.addEventListener('message', (e) => {
             this.systemInfo.innerHTML = e.data;
         });
-        monitorSocket.addEventListener('close', () => {
+        this.monitorSocket.addEventListener('close', (e) => {
+            if (e.code === 1000) { return; }
             setTimeout(() => { this.setupSocket(); }, 1000);
         });
-    }
-
-    registerEvent() { }
+    };
 };

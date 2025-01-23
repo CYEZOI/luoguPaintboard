@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { logger } from './logger';
 import { pb } from './pb';
 import sharp from 'sharp';
@@ -9,30 +9,59 @@ import expressWs from 'express-ws';
 import { tokens } from './token';
 import si from 'systeminformation';
 import { POS, setIntervalImmediately } from './utils';
-import { validate } from 'express-jsonschema';
+import { SESSION } from './session';
+import cookieParser from 'cookie-parser';
+import { ValidationError, Validator } from 'express-json-validator-middleware';
 
 const serverLogger = logger.child({ module: 'server' });
+const { validate } = new Validator({ allErrors: true });
+
+class SessionError extends Error {
+    override name = 'SessionError';
+}
 
 export const createServer = () => {
     const app = expressWs(express()).app;
 
-    app.use((err: any, _: Request, res: Response, next: any) => {
-        if (err.name === 'JsonSchemaValidation') {
-            res.status(400).json({ error: 'Invalid request format', details: err.validations });
-        } else {
-            next(err);
-        }
-    });
     app.use(express.static('public'));
     app.use(express.json({ limit: `${config.server.bodyLimit}mb` }));
+    app.use(cookieParser());
 
     app.get('/config', async (_: Request, res: Response) => {
         res.json(config);
     });
 
-    app.get('/token', async (_: Request, res: Response) => {
+    app.get('/session', async (req: Request, res: Response) => {
+        res.json({ valid: await SESSION.verifySession(req.cookies['session']) });
+    });
+    // @ts-ignore
+    app.post('/session', validate({
+        body: {
+            type: 'object',
+            properties: {
+                password: { type: 'string' },
+            },
+            required: ['password'],
+            additionalProperties: false,
+        }
+    }), async (req: Request, res: Response) => {
+        if (req.body.password !== config.server.password) {
+            res.json({ error: 'Password incorrect' });
+            return;
+        }
+        res.cookie('session', await SESSION.createSession(), { httpOnly: true });
+        res.json({});
+    });
+    app.delete('/session', async (req: Request, res: Response) => {
+        await SESSION.deleteSession(req.cookies['session']);
+        res.json({});
+    });
+
+    app.get('/token', async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         res.json(await prisma.token.findMany());
     });
+    // @ts-ignore
     app.post('/token', validate({
         body: {
             type: 'array',
@@ -40,17 +69,20 @@ export const createServer = () => {
                 type: 'object',
                 properties: {
                     uid: { type: 'number' },
-                    paste: { type: 'string' },
+                    token: { type: 'string' },
+                    enabled: { type: 'boolean' },
                 },
-                required: ['uid', 'paste'],
+                required: ['uid', 'token', 'enabled'],
                 additionalProperties: false,
             },
-            minItems: 1,
+
         }
-    }), async (req: Request, res: Response) => {
+    }), async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         await prisma.token.createMany({ data: req.body });
         res.json({});
     });
+    // @ts-ignore
     app.patch('/token/:uid', validate({
         body: {
             type: 'object',
@@ -60,15 +92,18 @@ export const createServer = () => {
             required: ['enabled'],
             additionalProperties: false,
         }
-    }), async (req: Request, res: Response) => {
+    }), async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         (req.body.enabled ? tokens.enableToken : tokens.disableToken)(parseInt(req.params['uid']!));
         res.json({});
     });
-    app.delete('/token/:uid', async (req: Request, res: Response) => {
+    app.delete('/token/:uid', async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         await prisma.token.deleteMany({ where: { uid: parseInt(req.params['uid']!) } });
         res.json({});
     });
-    app.ws('/token/ws', async (ws, _) => {
+    app.ws('/token/ws', async (ws, req: Request, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         const listener = (data: any) => ws.send(JSON.stringify(data));
         tokens.on(listener);
         ws.on('close', () => tokens.off(listener));
@@ -103,7 +138,8 @@ export const createServer = () => {
         }).pipe(createGzip()).pipe(res);
     });
 
-    app.ws('/monitor/ws', async (ws, _) => {
+    app.ws('/monitor/ws', async (ws, req: Request, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         var unload = false;
         var lastIn = 0;
         var lastOut = 0;
@@ -136,13 +172,15 @@ export const createServer = () => {
         ws.addEventListener('close', () => { unload = true; });
     });
 
-    app.get('/image', async (_: Request, res: Response) => {
+    app.get('/image', async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         res.json((await prisma.image.findMany({ omit: { image: true } })).map((image) => ({
             ...image,
             init: POS.fromNumber(image.init),
         })));
     });
-    app.get('/image/:id', async (req: Request, res: Response) => {
+    app.get('/image/:id', async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         const idString = req.params['id'];
         if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
             res.status(400).json({ error: 'Invalid id' });
@@ -161,6 +199,7 @@ export const createServer = () => {
             progressive: true,
         }).pipe(createGzip()).pipe(res);
     });
+    // @ts-ignore
     app.post('/image', validate({
         body: {
             type: 'object',
@@ -174,7 +213,8 @@ export const createServer = () => {
             required: ['name', 'image', 'scale', 'initX', 'initY'],
             additionalProperties: false,
         }
-    }), async (req: Request, res: Response) => {
+    }), async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         await prisma.image.create({
             data: {
                 name: req.body.name,
@@ -185,7 +225,8 @@ export const createServer = () => {
         });
         res.json({});
     });
-    app.delete('/image/:id', async (req: Request, res: Response) => {
+    app.delete('/image/:id', async (req: Request, res: Response, next: NextFunction) => {
+        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
         const idString = req.params['id'];
         if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
             res.status(400).json({ error: 'Invalid id' });
@@ -194,6 +235,17 @@ export const createServer = () => {
         const id = parseInt(idString);
         await prisma.image.deleteMany({ where: { id } });
         res.json({});
+    });
+
+    app.use((err: any, _: Request, res: Response, next: NextFunction) => {
+        if (err instanceof SessionError) {
+            res.status(401).json({ error: 'Unauthorized' });
+        }
+        else if (err instanceof ValidationError) {
+            res.status(400).json({ error: 'Invalid request format', details: err.validationErrors });
+        } else {
+            next(err);
+        }
     });
 
     app.listen(config.server.port, () => {

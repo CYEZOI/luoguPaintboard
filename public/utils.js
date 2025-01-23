@@ -10,7 +10,7 @@ export const setIntervalImmediately = async (callback, interval) => {
         if (stop) { return stopData; }
         await delay(interval);
     }
-}
+};
 
 export const toLocaleISOString = (date) => {
     return date.getFullYear() + '-' +
@@ -19,4 +19,4 @@ export const toLocaleISOString = (date) => {
         ('0' + date.getHours()).slice(-2) + ':' +
         ('0' + date.getMinutes()).slice(-2) + ':' +
         ('0' + date.getSeconds()).slice(-2);
-}
+};

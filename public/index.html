@@ -33,6 +33,7 @@
             display: unset !important;
         }
     </style>
+    <style id="adminStyle"></style>
 </head>
 
 <body class="placeholder-glow">
@@ -96,7 +97,21 @@
                 </div>
             </div>
             <div class="col-12 col-lg-6">
-                <div class="card mb-3">
+                <div class="mb-3">
+                    <div class="input-group mb-3">
+                        <div class="form-floating">
+                            <input type="password" class="form-control" id="adminPasswordInput" placeholder="Password"
+                                required>
+                            <label for="adminPasswordInput">管理员密码</label>
+                        </div>
+                        <button class="btn" id="adminButton"></button>
+                    </div>
+                </div>
+                <div class="card mb-3 adminOnly">
+                    <div class="card-header">系统信息</div>
+                    <pre id="systemInfo" class="card-body w-100"></pre>
+                </div>
+                <div class="card mb-3 adminOnly">
                     <div class="card-header">令牌管理</div>
                     <div class="card-body">
                         <div class="input-group mb-3">
@@ -131,11 +146,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="card mb-3">
-                    <div class="card-header">系统信息</div>
-                    <pre id="systemInfo" class="card-body w-100"></pre>
-                </div>
-                <div class="card mb-3">
+                <div class="card mb-3 adminOnly">
                     <div class="card-header">图片管理</div>
                     <div class="card-body">
                         <input type="file" class="form-control mb-3" id="imageInput" accept="image/*">
