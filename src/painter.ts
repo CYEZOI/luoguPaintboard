@@ -33,7 +33,7 @@ export class Painter {
                 usedUid.push(uid);
 
                 if (!this.paintQueue.length) { break; }
-                const paintEvent = this.paintQueue.splice(config.painter.random ? Math.floor(Math.random() * this.paintQueue.length) : 0, 1)[0]!;
+                const paintEvent = this.paintQueue.splice(config.config.painter.random ? Math.floor(Math.random() * this.paintQueue.length) : 0, 1)[0]!;
                 painterLogger.debug(`Painting uid: ${uid} (${token}), pos: ${paintEvent.pos.toString()}, rgb: ${paintEvent.rgb.toString()}`);
 
                 const id = Math.floor(Math.random() * ID_MAX);

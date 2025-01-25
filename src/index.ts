@@ -7,13 +7,16 @@ import { createServer } from './server';
 import { setupSignalHandler, waitBeforeClose } from './signal';
 import { socket } from './socket';
 import { tokens } from './token';
+import { config } from './config';
 
-logger.info('Starting...');
+logger.warn('Starting...');
 setupSignalHandler();
 if (!existsSync('pb')) { mkdirSync('pb'); }
+config.watchFile();
 createServer();
 tokens.fetchBlankTokenInterval();
 await pb.refreshPaintboard();
+logger.warn('Running...');
 waitBeforeClose(socket.startSending());
 waitBeforeClose(painter.startPainting());
 waitBeforeClose(images.startMonitoring());

@@ -11,7 +11,7 @@ export class SESSION {
         if (!id) return false;
         const session = await prisma.session.findUnique({ where: { id }, });
         if (!session) return false;
-        if (Date.now() - session.created.getTime() > config.server.session) {
+        if (Date.now() - session.created.getTime() > config.config.server.session) {
             await prisma.session.delete({ where: { id }, });
             return false;
         }

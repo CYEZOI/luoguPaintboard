@@ -41,7 +41,7 @@ export class Socket {
     }
 
     setupSocket = () => {
-        this.paintboardSocket = new WebSocket(config.socket.ws);
+        this.paintboardSocket = new WebSocket(config.config.socket.ws);
         this.paintboardSocket.binaryType = 'arraybuffer';
 
         this.paintboardSocket.addEventListener('message', async (event: WebSocket.MessageEvent) => {
@@ -53,7 +53,7 @@ export class Socket {
         this.paintboardSocket.addEventListener('close', async (reason: WebSocket.CloseEvent) => {
             socketLogger.error(`WebSocket closed: ${reason.code} ${reason.reason}`);
             await painter.moveAllPaintingToPending();
-            setTimeout(() => { this.setupSocket(); }, config.socket.retry);
+            setTimeout(() => { this.setupSocket(); }, config.config.socket.retry);
         });
     };
 
@@ -98,7 +98,7 @@ export class Socket {
                         case WebSocketMessageCodes.TOKEN_INVALID:
                             await tokens.fetchToken([paintEvent.uid!]);
                         case WebSocketMessageCodes.COOLING:
-                            await tokens.updateUseTime([paintEvent.uid!], new Date(new Date().getTime() - (config.token.cd - config.painter.retry)));
+                            await tokens.updateUseTime([paintEvent.uid!], new Date(new Date().getTime() - (config.config.token.cd - config.config.painter.retry)));
                             break;
                     }
                     await painter.donePainting(id, result);
@@ -126,7 +126,7 @@ export class Socket {
                 if (tempQueue.length === 0) {
                     return;
                 }
-                if (config.socket.batch) {
+                if (config.config.socket.batch) {
                     const buffer = new Uint8Array(tempQueue.reduce((acc, cur) => acc + cur.byteLength, 0));
                     let offset = 0;
                     for (const item of tempQueue) {

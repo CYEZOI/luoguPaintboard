@@ -31,7 +31,7 @@ export class Tokens {
             if (tokens.length > 0) {
                 await this.fetchToken(tokens.map(token => token.uid));
             }
-        }, config.token.interval);
+        }, config.config.token.interval);
     };
 
     fetchToken = async (uidList: number[]) => {
@@ -42,7 +42,7 @@ export class Tokens {
             await this.prismaToken.update({ where: { uid, }, data: { token: null, message: 'Getting token', }, });
             this.trigger({ uid, token: null, message: 'Getting token', });
             try {
-                const res = await fetch(`${config.socket.http}/api/auth/gettoken`, {
+                const res = await fetch(`${config.config.socket.http}/api/auth/gettoken`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', },
                     body: JSON.stringify({ uid, paste: token.paste, }),
@@ -72,7 +72,7 @@ export class Tokens {
         const token = await this.getToken(uid);
         if (!token) { return false; }
         if (token.lastUsed == null) { return true; }
-        return new Date().getTime() - token.lastUsed.getTime() > config.token.cd;
+        return new Date().getTime() - token.lastUsed.getTime() > config.config.token.cd;
     };
 
     getAvailableTokens = async () => {
@@ -80,7 +80,7 @@ export class Tokens {
             where: {
                 token: { not: null },
                 enabled: true,
-                lastUsed: { lt: new Date(new Date().getTime() - config.token.cd) },
+                lastUsed: { lt: new Date(new Date().getTime() - config.config.token.cd) },
             },
             orderBy: { lastUsed: 'asc', }
         });

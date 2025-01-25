@@ -24,7 +24,7 @@ export const createServer = () => {
     const app = expressWs(express()).app;
 
     app.use(express.static('public'));
-    app.use(express.json({ limit: `${config.server.bodyLimit}mb` }));
+    app.use(express.json({ limit: `${config.config.server.bodyLimit}mb` }));
     app.use(cookieParser());
 
     app.get('/config', async (_: Request, res: Response) => {
@@ -45,7 +45,7 @@ export const createServer = () => {
             additionalProperties: false,
         }
     }), async (req: Request, res: Response) => {
-        if (req.body.password !== config.server.password) {
+        if (req.body.password !== config.config.server.password) {
             res.json({ error: 'Password incorrect' });
             return;
         }
@@ -128,8 +128,8 @@ export const createServer = () => {
         res.setHeader('Content-Encoding', 'gzip');
         sharp(Buffer.from(board), {
             raw: {
-                width: config.pb.width,
-                height: config.pb.height,
+                width: config.config.pb.width,
+                height: config.config.pb.height,
                 channels: 3
             }
         }).jpeg({
@@ -248,7 +248,7 @@ export const createServer = () => {
         }
     });
 
-    app.listen(config.server.port, () => {
-        serverLogger.warn(`Server started at port ${config.server.port}`);
+    app.listen(config.config.server.port, () => {
+        serverLogger.warn(`Server started at port ${config.config.server.port}`);
     });
 };

@@ -20,7 +20,7 @@ export class PB {
     constructor() {
         setInterval(async () => {
             await this.refreshPaintboard();
-        }, config.pb.refresh);
+        }, config.config.pb.refresh);
     }
 
     update = async (pos: POS, color: RGB) => {
@@ -40,16 +40,16 @@ export class PB {
         await socket.socketOpen;
         this.refreshing = true;
         try {
-            const res = await fetch(`${config.socket.http}/api/paintboard/getboard`);
+            const res = await fetch(`${config.config.socket.http}/api/paintboard/getboard`);
             if (res.status !== 200) { throw 'Paintboard data fetch failed.'; }
             const byteArray = new Uint8Array(await res.arrayBuffer());
-            if (byteArray.length !== config.pb.width * config.pb.height * 3) { throw 'Paintboard data length mismatch.'; }
-            for (let y = 0; y < config.pb.height; y++) {
-                for (let x = 0; x < config.pb.width; x++) {
+            if (byteArray.length !== config.config.pb.width * config.config.pb.height * 3) { throw 'Paintboard data length mismatch.'; }
+            for (let y = 0; y < config.config.pb.height; y++) {
+                for (let x = 0; x < config.config.pb.width; x++) {
                     this.setBoardData(new POS(x, y), new RGB(
-                        byteArray[y * config.pb.width * 3 + x * 3]!,
-                        byteArray[y * config.pb.width * 3 + x * 3 + 1]!,
-                        byteArray[y * config.pb.width * 3 + x * 3 + 2]!
+                        byteArray[y * config.config.pb.width * 3 + x * 3]!,
+                        byteArray[y * config.config.pb.width * 3 + x * 3 + 1]!,
+                        byteArray[y * config.config.pb.width * 3 + x * 3 + 2]!
                     ));
                 }
             }
@@ -91,7 +91,7 @@ export class PB {
         if (latest) {
             const compressed = await readFile(`pb/${latest}.pb`);
             var byteArray = new Uint8Array(await gzip.ungzip(compressed));
-            if (byteArray.length !== config.pb.width * config.pb.height * 3) {
+            if (byteArray.length !== config.config.pb.width * config.config.pb.height * 3) {
                 pbLogger.error(`Paintboard data length mismatch: pb/${latest}.pb`);
                 return null;
             }
@@ -110,7 +110,7 @@ export class PB {
                     const currentTime = new Date(base + delta);
                     if (currentTime.getTime() > time.getTime()) { break; }
                     const pos = POS.fromNumber(file[j + 2]! << 16 | file[j + 3]! << 8 | file[j + 4]!);
-                    byteArray.set([...file.subarray(j + 5, j + 8)], (pos.y * config.pb.width + pos.x) * 3);
+                    byteArray.set([...file.subarray(j + 5, j + 8)], (pos.y * config.config.pb.width + pos.x) * 3);
                 }
             }
             return byteArray;
