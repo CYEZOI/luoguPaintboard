@@ -28,7 +28,7 @@ export const createServer = () => {
     app.use(cookieParser());
 
     app.get('/config', async (_: Request, res: Response) => {
-        res.json(config);
+        res.json(config.config);
     });
 
     app.get('/session', async (req: Request, res: Response) => {
