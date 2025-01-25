@@ -68,31 +68,41 @@
                     </div>
                 </div>
                 <div class="card mb-3">
-                    <div class="card-header">历史回顾</div>
+                    <div class="card-header">
+                        历史回顾
+                        <div id="historySpinner" class="spinner-border spinner-border-sm" role="status" hidden></div>
+                    </div>
                     <div class="card-body">
                         <div class="d-flex justify-content-between" style="margin-bottom: -0.5em">
                             <a id="oldestLabel" role="button"></a>
                             <a id="newestLabel" role="button"></a>
                         </div>
                         <input type="range" class="form-range" id="historyRange" disabled step="1">
-                        <div class="d-flex justify-content-between" style="margin-top: -0.5em">
-                            <button class="btn btn-outline-primary" id="historyPrevButton">&laquo;</button>
-                            <div>
-                                <a id="currentLabel"></a>
-                                <span>
-                                    <input type="datetime-local" class="form-control" id="currentLabelEditor" hidden>
-                                </span>
-                            </div>
-                            <button class="btn btn-outline-primary" id="historyNextButton">&raquo;</button>
+                        <div class="d-flex justify-content-center" style="margin-top: -0.5em">
+                            <a id="currentLabel"></a>
+                            <span>
+                                <input type="datetime-local" class="form-control" id="currentLabelEditor" hidden>
+                            </span>
                         </div>
-                        <div id="historyContainer" class="blurContainer mt-2">
-                            <img role="button" class="w-100 h-100">
-                            <div class="w-100 h-100" hidden>
-                                <div class="d-flex justify-content-center align-items-center w-100 h-100">
-                                    <div class="spinner-border" role="status"></div>
-                                </div>
-                            </div>
+                        <div class="d-flex justify-content-center btn-group">
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="-86400">-1d</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="-3600">-1h</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="-60">-1m</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="-1">-1s</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="1">+1s</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="60">+1m</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="3600">+1h</button>
+                            <button class="btn btn-sm btn-outline-secondary historyJumpButtons"
+                                data-delta="86400">+1d</button>
                         </div>
+                        <img id="historyPaintboard" role="button" class="w-100 h-100 mt-3">
                     </div>
                 </div>
             </div>
@@ -155,14 +165,12 @@
                                 <div class="input-group">
                                     <span class="input-group-text">左侧</span>
                                     <input type="number" class="form-control" id="imageXInput" min="0" step="1">
-                                    <span class="input-group-text">像素</span>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group">
                                     <span class="input-group-text">顶端</span>
                                     <input type="number" class="form-control" id="imageYInput" min="0" step="1">
-                                    <span class="input-group-text">像素</span>
                                 </div>
                             </div>
                         </div>
@@ -171,14 +179,12 @@
                                 <div class="input-group">
                                     <span class="input-group-text">宽度</span>
                                     <input type="number" class="form-control" id="imageWidthInput" min="1" step="1">
-                                    <span class="input-group-text">像素</span>
                                 </div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group">
                                     <span class="input-group-text">高度</span>
                                     <input type="number" class="form-control" id="imageHeightInput" min="1" step="1">
-                                    <span class="input-group-text">像素</span>
                                 </div>
                             </div>
                         </div>

@@ -2,15 +2,23 @@ import { config } from './config.js';
 import { toLocaleISOString } from './utils.js';
 
 export class PBHistory {
-    historyContainer = document.getElementById('historyContainer');
-    historyPaintboard = this.historyContainer.firstElementChild;
+    historySpinner = document.getElementById('historySpinner');
+    historyPaintboard = document.getElementById('historyPaintboard');
     historyRange = document.getElementById('historyRange');
     oldestLabel = document.getElementById('oldestLabel');
     currentLabel = document.getElementById('currentLabel');
     newestLabel = document.getElementById('newestLabel');
     currentLabelEditor = document.getElementById('currentLabelEditor');
-    historyPrevButton = document.getElementById('historyPrevButton');
-    historyNextButton = document.getElementById('historyNextButton');
+    historyJumpButtons = document.getElementsByClassName('historyJumpButtons');
+
+    enableChange = (enable) => {
+        this.historySpinner.hidden = enable;
+        this.historyRange.disabled = !enable;
+        this.currentLabelEditor.disabled = !enable;
+        for (let button of this.historyJumpButtons) {
+            button.disabled = !enable;
+        }
+    };
 
     constructor() {
         this.historyPaintboard.width = config.pb.width;
@@ -46,8 +54,9 @@ export class PBHistory {
             this.currentLabelEditor.max = toLocaleISOString(new Date(this.historyRange.max * 1000));
         };
         this.historyRange.onchange = () => {
-            this.historyRange.disabled = true;
+            this.enableChange(false);
             const time = this.historyRange.value;
+            this.historyPaintboard.setAttribute('src', '');
             this.historyPaintboard.setAttribute('src', `/history/${time}`);
         };
 
@@ -69,19 +78,22 @@ export class PBHistory {
             this.changeHistoryRangeValue(Math.floor(Date.parse(this.currentLabelEditor.value) / 1000));
         });
 
-        this.historyPrevButton.addEventListener('click', () => {
-            this.changeHistoryRangeValue(Math.max(this.historyRange.min, parseInt(this.historyRange.value) - 60));
-        });
-        this.historyNextButton.addEventListener('click', () => {
-            this.changeHistoryRangeValue(Math.min(this.historyRange.max, parseInt(this.historyRange.value) + 60));
-        });
+        for (let button of this.historyJumpButtons) {
+            button.addEventListener('click', () => {
+                const delta = parseInt(button.dataset.delta);
+                var time = parseInt(this.historyRange.value) + delta;
+                time = Math.max(this.historyRange.min, time);
+                time = Math.min(this.historyRange.max, time);
+                this.changeHistoryRangeValue(time);
+            });
+        }
 
         this.historyPaintboard.addEventListener('load', () => {
-            this.historyRange.disabled = false;
+            this.enableChange(true);
         });
-        this.historyPaintboard.addEventListener('error', () => {
-            this.historyRange.disabled = false;
-            alert('Failed to load history image');
+        this.historyPaintboard.addEventListener('error', (e) => {
+            this.enableChange(true);
+            alert('Failed to load history image: ' + e.target.src);
         });
         this.historyPaintboard.addEventListener('click', () => { open(this.historyPaintboard.src); });
     }
