@@ -73,7 +73,7 @@ const app = expressWs(express()).app;
 app.use(cookieParser());
 
 app.use((req, res, next) => {
-    serverLogger.debug(`${req.ips.join('-')} ${req.method} ${req.path} ${req.cookies['session']}`);
+    serverLogger.debug({ req }, `${req.ips.join('-')} ${req.method} ${req.path} ${req.cookies['session']}`);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE');
     next();
 });

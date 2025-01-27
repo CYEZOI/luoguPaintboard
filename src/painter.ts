@@ -59,7 +59,7 @@ export class Painter {
         const paintEvent = this.paintingQueue.get(id);
         if (paintEvent) {
             this.paintingQueue.delete(id);
-            painterLogger.debug(`Paint done, pos: ${paintEvent.pos.toOutputString()}, rgb: ${paintEvent.rgb.toOutputString()}, result: ${result}`);
+            painterLogger.debug({ paintEvent, result }, `Paint done, pos: ${paintEvent.pos.toOutputString()}, rgb: ${paintEvent.rgb.toOutputString()}, result: ${result}`);
         }
     };
     getPaintEvent = async (id: number) => { return this.paintingQueue.get(id); };

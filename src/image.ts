@@ -72,7 +72,7 @@ export class Images {
                 if (!this.images.has(image.id)) {
                     const imageObj = new Image(image.id);
                     imageObj.load().then(() => {
-                        imageLogger.warn(`Image ${image.id} (${image.name}) loaded.`);
+                        imageLogger.warn(image, `Image ${image.id} (${image.name}) loaded.`);
                         this.images.set(image.id, imageObj);
                     });
                 }
@@ -80,7 +80,8 @@ export class Images {
             var needRepaint = false;
             for (const [id, _] of this.images) {
                 if (!images.find((i) => i.id === id)) {
-                    imageLogger.warn(`Image ${id} (${this.images.get(id)!.name}) unloaded.`);
+                    const image = this.images.get(id)!;
+                    imageLogger.warn(image, `Image ${id} (${image.name}) unloaded.`);
                     this.images.delete(id);
                     needRepaint = true;
                 }

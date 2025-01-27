@@ -12,7 +12,7 @@ export const prisma = new PrismaClient({
     ],
 });
 
-prisma.$on('query', (e) => { dbLogger.trace(`Query: ${e.duration}ms ${e.query}`); });
-prisma.$on('info', (e) => { dbLogger.info(e.message); });
-prisma.$on('warn', (e) => { dbLogger.warn(e.message); });
-prisma.$on('error', (e) => { dbLogger.error(e.message); });
+prisma.$on('query', (e) => { dbLogger.trace({ e }, `Query: ${e.duration}ms ${e.query}`); });
+prisma.$on('info', (e) => { dbLogger.info({ e }, e.message); });
+prisma.$on('warn', (e) => { dbLogger.warn({ e }, e.message); });
+prisma.$on('error', (e) => { dbLogger.error({ e }, e.message); });

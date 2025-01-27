@@ -46,7 +46,6 @@ export class CONFIG {
 
     watchFile = () => {
         watch('./config.yml', (event, _) => {
-            configLogger.info(`Config file event: ${event}`);
             if (event === 'change') {
                 configLogger.warn('Config file changed, reloading');
                 try {
