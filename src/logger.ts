@@ -5,7 +5,7 @@ import { createStream } from 'rotating-file-stream';
 export const logger: pino.Logger = pino({
     level: 'trace',
     base: null,
-    redact: ['e.image'],
+    redact: ['image.image'],
 }, pino.multistream([
     {
         level: 'trace',
