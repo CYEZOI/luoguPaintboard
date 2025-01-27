@@ -180,7 +180,7 @@ export class TOKENS {
                     this.tokenList.appendChild(this.createTokenElement(token));
                 });
 
-                this.tokenSocket = new WebSocket('/token');
+                this.tokenSocket = new WebSocket('/token/ws');
                 this.tokenSocket.addEventListener('message', event => {
                     const data = JSON.parse(event.data);
                     const uid = data.uid;
