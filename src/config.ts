@@ -29,6 +29,7 @@ export interface CONFIG_DATA {
         bodyLimit: number;
         password: string;
         session: number;
+        referer: string[];
     };
 };
 

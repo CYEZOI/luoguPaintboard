@@ -12,7 +12,7 @@ export class MONITOR {
     };
 
     setupSocket = () => {
-        this.monitorSocket = new WebSocket('/monitor/ws');
+        this.monitorSocket = new WebSocket('/monitor');
         this.monitorSocket.addEventListener('message', (e) => {
             this.systemInfo.innerHTML = e.data;
         });

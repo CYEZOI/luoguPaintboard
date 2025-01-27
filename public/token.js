@@ -71,7 +71,11 @@ export class TOKENS {
         deleteButton.classList.add('btn', 'btn-sm', 'btn-outline-danger');
         deleteButton.innerText = '删除';
         deleteButton.onclick = async () => {
-            const res = await fetch(`/token/${token.uid}`, { method: 'DELETE', });
+            const res = await fetch(`/token/${token.uid}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
             if (res.ok) { tokenElement.remove(); }
         };
 
@@ -176,7 +180,7 @@ export class TOKENS {
                     this.tokenList.appendChild(this.createTokenElement(token));
                 });
 
-                this.tokenSocket = new WebSocket('/token/ws');
+                this.tokenSocket = new WebSocket('/token');
                 this.tokenSocket.addEventListener('message', event => {
                     const data = JSON.parse(event.data);
                     const uid = data.uid;

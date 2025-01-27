@@ -1,4 +1,4 @@
-import express, { NextFunction, Request, Response } from 'express';
+import express from 'express';
 import { logger } from './logger';
 import { pb } from './pb';
 import sharp from 'sharp';
@@ -11,108 +11,149 @@ import si from 'systeminformation';
 import { POS, setIntervalImmediately } from './utils';
 import { SESSION } from './session';
 import cookieParser from 'cookie-parser';
-import { ValidationError, Validator } from 'express-json-validator-middleware';
+import { JSONSchema7, validate } from 'json-schema';
 
 const serverLogger = logger.child({ module: 'server' });
-const { validate } = new Validator({ allErrors: true });
 
-class SessionError extends Error {
-    override name = 'SessionError';
-}
+const JSONSchemas: { [key: string]: JSONSchema7 } = {
+    'POST session': {
+        type: 'object',
+        properties: {
+            password: { type: 'string' },
+        },
+        required: ['password'],
+        additionalProperties: false,
+    },
+    'POST token': {
+        type: 'array',
+        items: {
+            type: 'object',
+            properties: {
+                uid: { type: 'number' },
+                paste: { type: 'string' },
+            },
+            required: ['uid', 'paste'],
+            additionalProperties: false,
+        },
+    },
+    'PATCH token': {
+        type: 'object',
+        properties: {
+            enabled: { type: 'boolean' },
+        },
+        required: ['enabled'],
+        additionalProperties: false,
+    },
+    'POST image': {
+        type: 'object',
+        properties: {
+            name: { type: 'string' },
+            image: { type: 'string' },
+            scale: { type: 'number' },
+            initX: { type: 'number' },
+            initY: { type: 'number' },
+        },
+        required: ['name', 'image', 'scale', 'initX', 'initY'],
+        additionalProperties: false,
+    },
+};
 
 export const createServer = () => {
     const app = expressWs(express()).app;
 
-    app.use(express.static('public'));
-    app.use(express.json({ limit: `${config.config.server.bodyLimit}mb` }));
     app.use(cookieParser());
 
-    app.get('/config', async (_: Request, res: Response) => {
+    app.use((req, res, next) => {
+        serverLogger.debug(`${req.ips.join('-')} ${req.method} ${req.path} ${req.cookies['session']}`);
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE');
+        next();
+    });
+
+    app.use(express.static('public'));
+
+    app.use((req, res, next: express.NextFunction) => {
+        if (!config.config.server.referer.includes(req.headers.referer?.split('/')[2] ?? '')) {
+            res.status(403).json({ error: 'Forbidden' });
+            return;
+        }
+        if (req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE') {
+            if (!req.headers['content-type']?.includes('application/json')) {
+                res.status(415).json({ error: 'Unsupported Media Type' });
+                return;
+            }
+        }
+        if (req.headers['content-length'] && parseInt(req.headers['content-length']!) > config.config.server.bodyLimit * 1024 * 1024) {
+            res.status(413).json({ error: 'Payload Too Large' });
+            return;
+        }
+        const adminPages = ['/token', '/image', '/monitor'];
+        if (adminPages.includes(req.path) && !req.cookies['session']) {
+            res.status(401).json({ error: 'Unauthorized' });
+            return;
+        }
+        next();
+    });
+
+    app.use(express.json());
+
+    app.use((req, res, next) => {
+        const schema = JSONSchemas[`${req.method} ${req.path.split('/')[1]}`];
+        if (schema) {
+            const result = validate(req.body, schema);
+            if (!result.valid) {
+                res.status(400).json({ error: 'Invalid request format: ' + result.errors.map(error => error.message).join(', ') });
+                return;
+            }
+        }
+        next();
+    });
+
+
+    app.get('/config', async (_req, res) => {
         res.json(config.config);
     });
 
-    app.get('/session', async (req: Request, res: Response) => {
+    app.get('/session', async (req, res) => {
         res.json({ valid: await SESSION.verifySession(req.cookies['session']) });
     });
-    // @ts-ignore
-    app.post('/session', validate({
-        body: {
-            type: 'object',
-            properties: {
-                password: { type: 'string' },
-            },
-            required: ['password'],
-            additionalProperties: false,
-        }
-    }), async (req: Request, res: Response) => {
+    app.post('/session', async (req, res) => {
         if (req.body.password !== config.config.server.password) {
-            res.json({ error: 'Password incorrect' });
+            res.status(401).json({ error: 'Password incorrect' });
             return;
         }
         res.cookie('session', await SESSION.createSession(), { httpOnly: true });
         res.json({});
     });
-    app.delete('/session', async (req: Request, res: Response) => {
+    app.delete('/session', async (req, res) => {
         await SESSION.deleteSession(req.cookies['session']);
         res.json({});
     });
 
-    app.get('/token', async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.get('/token', async (_req, res) => {
         res.json(await prisma.token.findMany());
     });
-    // @ts-ignore
-    app.post('/token', validate({
-        body: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    uid: { type: 'number' },
-                    token: { type: 'string' },
-                    enabled: { type: 'boolean' },
-                },
-                required: ['uid', 'token', 'enabled'],
-                additionalProperties: false,
-            },
-
-        }
-    }), async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.post('/token', async (req, res) => {
         await prisma.token.createMany({ data: req.body });
         res.json({});
     });
-    // @ts-ignore
-    app.patch('/token/:uid', validate({
-        body: {
-            type: 'object',
-            properties: {
-                enabled: { type: 'boolean' },
-            },
-            required: ['enabled'],
-            additionalProperties: false,
-        }
-    }), async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.patch('/token/:uid', async (req, res) => {
         (req.body.enabled ? tokens.enableToken : tokens.disableToken)(parseInt(req.params['uid']!));
         res.json({});
     });
-    app.delete('/token/:uid', async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.delete('/token/:uid', async (req, res) => {
         await prisma.token.deleteMany({ where: { uid: parseInt(req.params['uid']!) } });
         res.json({});
     });
-    app.ws('/token/ws', async (ws, req: Request, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.ws('/token', async (ws, _req) => {
         const listener = (data: any) => ws.send(JSON.stringify(data));
         tokens.on(listener);
         ws.on('close', () => tokens.off(listener));
     });
 
-    app.get('/history', async (_: Request, res: Response) => {
+    app.get('/history', async (_req, res) => {
         res.json({ oldest: await pb.getOldestHistory() });
     });
-    app.get('/history/:time', async (req: Request, res: Response) => {
+    app.get('/history/:time', async (req, res) => {
         const timeString = req.params['time'];
         if (typeof timeString !== 'string' || !/^\d+$/.test(timeString)) {
             res.status(400).json({ error: 'Invalid time' });
@@ -138,8 +179,7 @@ export const createServer = () => {
         }).pipe(createGzip()).pipe(res);
     });
 
-    app.ws('/monitor/ws', async (ws, req: Request, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.ws('/monitor', async (ws, _req) => {
         var unload = false;
         var lastIn = 0;
         var lastOut = 0;
@@ -172,15 +212,13 @@ export const createServer = () => {
         ws.addEventListener('close', () => { unload = true; });
     });
 
-    app.get('/image', async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.get('/image', async (_req, res) => {
         res.json((await prisma.image.findMany({ omit: { image: true } })).map((image) => ({
             ...image,
             init: POS.fromNumber(image.init),
         })));
     });
-    app.get('/image/:id', async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.get('/image/:id', async (req, res) => {
         const idString = req.params['id'];
         if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
             res.status(400).json({ error: 'Invalid id' });
@@ -199,22 +237,7 @@ export const createServer = () => {
             progressive: true,
         }).pipe(createGzip()).pipe(res);
     });
-    // @ts-ignore
-    app.post('/image', validate({
-        body: {
-            type: 'object',
-            properties: {
-                name: { type: 'string' },
-                image: { type: 'string' },
-                scale: { type: 'number' },
-                initX: { type: 'number' },
-                initY: { type: 'number' },
-            },
-            required: ['name', 'image', 'scale', 'initX', 'initY'],
-            additionalProperties: false,
-        }
-    }), async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.post('/image', async (req, res) => {
         await prisma.image.create({
             data: {
                 name: req.body.name,
@@ -225,8 +248,7 @@ export const createServer = () => {
         });
         res.json({});
     });
-    app.delete('/image/:id', async (req: Request, res: Response, next: NextFunction) => {
-        if (!await SESSION.verifySession(req.cookies['session'])) { next(new SessionError()); return; }
+    app.delete('/image/:id', async (req, res) => {
         const idString = req.params['id'];
         if (typeof idString !== 'string' || !/^\d+$/.test(idString)) {
             res.status(400).json({ error: 'Invalid id' });
@@ -235,17 +257,6 @@ export const createServer = () => {
         const id = parseInt(idString);
         await prisma.image.deleteMany({ where: { id } });
         res.json({});
-    });
-
-    app.use((err: any, _: Request, res: Response, next: NextFunction) => {
-        if (err instanceof SessionError) {
-            res.status(401).json({ error: 'Unauthorized' });
-        }
-        else if (err instanceof ValidationError) {
-            res.status(400).json({ error: 'Invalid request format', details: err.validationErrors });
-        } else {
-            next(err);
-        }
     });
 
     app.listen(config.config.server.port, () => {

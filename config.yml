@@ -54,3 +54,5 @@ server:
   bodyLimit: 30 # 上传数据大小限制 
   password: "NOIP2024rp++" # 网页管理员密码
   session: 3600000 # session 过期时间
+  referer: # 允许的 referer
+    - "localhost:3000"

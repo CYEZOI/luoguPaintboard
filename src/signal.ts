@@ -6,12 +6,16 @@ import { prisma } from './db';
 const waitList: Promise<void>[] = [];
 export var closing = false;
 
-const signalHandler = async (signal: NodeJS.Signals) => {
-    logger.info(`Received signal: ${signal}, cleaning up...`);
+export const cleanUp = async () => {
     closing = true;
     for (const promise of waitList) { await promise; }
     socket.close();
     await prisma.$disconnect();
+};
+
+const signalHandler = async (signal: NodeJS.Signals) => {
+    logger.info(`Received signal: ${signal}, cleaning up...`);
+    cleanUp();
     logger.info('Exiting...');
     process.exit(0);
 };

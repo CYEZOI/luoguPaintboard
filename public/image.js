@@ -51,7 +51,7 @@ export class IMAGE {
         const file = e.target.files[0];
         this.imageNameInput.value = file.name;
         if (file.size > config.server.bodyLimit * 1024 * 1024) {
-            alert('文件大小不能超过20MB');
+            alert(`文件大小不能超过${config.server.bodyLimit}MB`);
             return;
         }
         const reader = new FileReader();
@@ -144,8 +144,11 @@ export class IMAGE {
                     deleteButton.classList.add('btn', 'btn-sm', 'btn-outline-danger');
                     deleteButton.innerText = '删除';
                     deleteButton.addEventListener('click', () => {
-                        fetch(`/image/${image.id}`, { method: 'DELETE' })
-                            .then(res => res.json())
+                        fetch(`/image/${image.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({}),
+                        }).then(res => res.json())
                             .then(data => {
                                 if (data.error) {
                                     alert(data.error);

@@ -20,7 +20,9 @@ export class ADMIN {
         this.adminButton.addEventListener('click', () => {
             if (this.login) {
                 fetch('/session', {
-                    method: 'DELETE'
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}),
                 }).then(response => response.json()).then(data => {
                     this.setLogin(false);
                 });
