@@ -108,7 +108,7 @@ app.use((req, res, next: express.NextFunction) => {
     next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: `${config.config.server.bodyLimit}mb` }));
 
 app.use((req, res, next) => {
     // Validate JSON schema
